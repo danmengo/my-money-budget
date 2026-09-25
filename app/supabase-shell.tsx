@@ -14,6 +14,7 @@ export default function SupabaseShell() {
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -43,8 +44,15 @@ export default function SupabaseShell() {
 
   async function signInGoogle() {
     setMessage('');
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
-    if (error) setMessage(error.message);
+    setGoogleBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+    if (error) {
+      setMessage(error.message);
+      setGoogleBusy(false);
+    }
   }
 
   if (loading) return <main className="sign-in-page"><div className="sign-in-card">Loading…</div></main>;
@@ -53,7 +61,7 @@ export default function SupabaseShell() {
   return <main className="sign-in-page"><div className="sign-in-card">
     <div className="sign-in-mark">↗</div><h1>Your money, in one place.</h1>
     <p>Sign in to see your private budget, spending, savings, and investing goals.</p>
-    <button type="button" onClick={() => { void signInGoogle(); }}>Continue with Google</button>
+    <button type="button" onClick={() => { void signInGoogle(); }} disabled={googleBusy}>{googleBusy ? 'Connecting to Google…' : 'Continue with Google'}</button>
     <p>Or sign in with email</p>
     <form onSubmit={sent ? verifyCode : sendCode} className="form">
       <label>Email<input required type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} disabled={sent} /></label>
