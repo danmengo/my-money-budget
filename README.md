@@ -1,13 +1,49 @@
 # My Money
 
-Budgeting app for income, expenses, category limits, and savings goals.
+A clean personal-finance dashboard for tracking income, expenses, monthly budgets, savings, and investing goals.
 
-## Status
+**Live app:** https://budget.danmengo.com
 
-The existing private [live Site](https://daniel-budget-tracker.danmengo.chatgpt.site) still uses ChatGPT sign-in and its managed Cloudflare D1 database. GitHub changes do not automatically deploy to that Site.
+## Features
 
-The Supabase login and data path is prepared in source. The schema was applied to Daniel's Supabase project on September 25, 2026, and all four tables were checked for RLS and anonymous access. Google OAuth, email templates, and standalone Cloudflare hosting still need setup. The old database contains only unclaimed demo records, so there is no personal data to migrate. Follow [the Supabase setup guide](docs/supabase-setup.md). Do not place budget records, database passwords, or secret keys in GitHub.
+- Google OAuth and passwordless email sign-in with Supabase Auth
+- Private, per-user financial data protected by PostgreSQL Row Level Security
+- Income and expense tracking with editable categories
+- Monthly category budgets and progress
+- Savings and investing goals
+- Monthly analytics and spending breakdowns
+- CSV transaction export
+- Responsive desktop and mobile UI
+
+## Tech stack
+
+- Next.js 16 + React 19 + TypeScript
+- Supabase Auth + PostgreSQL
+- Cloudflare Workers
+- Tailwind CSS / shadcn UI
+- Recharts
+
+## Security
+
+Every financial row has an authenticated owner. Supabase RLS policies restrict select, insert, update, and delete operations to that owner. The application uses the signed-in user's access token and a public Supabase publishable key; it does not use a service-role key in the browser or API route.
+
+Never commit database passwords, OAuth client secrets, Supabase secret/service-role keys, or real financial data.
 
 ## Local development
 
-Node.js 22+ and pnpm. Run `pnpm install` and `pnpm dev`; `pnpm build` checks the current Sites build. `pnpm build:cloudflare` builds the standalone Worker with the two public Supabase environment variables configured.
+Requirements: Node.js 22+ and pnpm.
+
+1. Copy `.env.example` to `.env.local`.
+2. Add your Supabase project URL and publishable key.
+3. Run `pnpm install`.
+4. Run `pnpm dev`.
+
+For a Cloudflare production build, run `pnpm build:cloudflare`.
+
+## Database setup
+
+The schema and RLS policies live in `supabase/migrations/20260925000000_budget_schema.sql`. Apply the migration to your Supabase project before using the app.
+
+## Deployment
+
+The production app is deployed to Cloudflare Workers and served at https://budget.danmengo.com.
