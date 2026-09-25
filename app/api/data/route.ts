@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { NextRequest, NextResponse } from 'next/server';
 import { getChatGPTUser, type ChatGPTUser } from '../../chatgpt-auth';
+import { handleSupabase } from './supabase';
 
 const db = () => { if (!env.DB) throw new Error('Storage unavailable'); return env.DB; };
 const bad = (message:string,status=400) => NextResponse.json({error:message},{status});
@@ -48,13 +49,15 @@ async function snapshot(database:D1Database,ownerId:string){
   return {transactions:t.results,budgets:b.results,goals:g.results,demo:s?.value==='demo'};
 }
 
-export async function GET(){
+export async function GET(request:NextRequest){
+  if(process.env.NEXT_PUBLIC_SUPABASE_URL)return handleSupabase(request);
   const user=await getChatGPTUser();
   if(!user)return bad('Sign in to view your budget.',401);
   try{const d=db();await initialize(d,user);return NextResponse.json(await snapshot(d,user.userId));}
   catch(e){console.error(e);return bad('Unable to load your budget. Please try again.',503)}
 }
 export async function POST(request:NextRequest){
+  if(process.env.NEXT_PUBLIC_SUPABASE_URL)return handleSupabase(request);
   const user=await getChatGPTUser();
   if(!user)return bad('Sign in to change your budget.',401);
   const ownerId=user.userId;

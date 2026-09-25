@@ -7,6 +7,7 @@ import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogFooter } from '@/co
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { PieChart,Pie,Cell,ResponsiveContainer,Tooltip } from 'recharts';
+import { getSupabase } from './supabase-client';
 
 type Tx={id:number;date:string;name:string;amount:number;category:string;type:string};
 type Budget={category:string;amount:number};type Goal={id:number;name:string;type:string;target:number;current:number};
@@ -18,14 +19,20 @@ const monthName=(m:string)=>new Date(`${m}-15T12:00:00`).toLocaleDateString('en-
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const currentMonth=()=>today().slice(0,7);
 const csvEscape=(s:string)=>`"${s.replaceAll('"','""')}"`;
-export default function DashboardClient({displayName}:{displayName:string}){
+export default function DashboardClient({displayName,accessToken,onSignOut}:{displayName:string;accessToken?:string;onSignOut?:()=>void}){
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const [tab,setTab]=useState('Overview'),[month,setMonth]=useState(currentMonth());
  const [txOpen,setTxOpen]=useState(false),[editTx,setEditTx]=useState<Tx|null>(null),[txForm,setTxForm]=useState({name:'',amount:'',date:today(),category:'Food',type:'expense'});
  const [goalOpen,setGoalOpen]=useState(false),[editGoal,setEditGoal]=useState<Goal|null>(null),[goalForm,setGoalForm]=useState({name:'',type:'saving',target:'',current:''});
  const [budgetEdit,setBudgetEdit]=useState<string|null>(null),[budgetAmount,setBudgetAmount]=useState('');
  const [query,setQuery]=useState(''),[filter,setFilter]=useState('All');
- useEffect(()=>{fetch('/api/data').then(async r=>{const x=await r.json() as Data & {error?:string};if(!r.ok)throw Error(x.error);setData(x)}).catch(e=>setError(e.message))},[]);
+ async function apiFetch(payload?:Record<string,unknown>){
+  const headers:Record<string,string>={};
+  if(accessToken){const {data:{session}}=await getSupabase().auth.getSession();if(!session)throw Error('Your session expired. Please sign in again.');headers.Authorization=`Bearer ${session.access_token}`;}
+  if(payload)headers['Content-Type']='application/json';
+  return fetch('/api/data',{method:payload?'POST':'GET',headers,body:payload?JSON.stringify(payload):undefined});
+ }
+ useEffect(()=>{apiFetch().then(async r=>{const x=await r.json() as Data & {error?:string};if(!r.ok)throw Error(x.error);setData(x)}).catch(e=>setError(e.message))},[accessToken]);
  useEffect(()=>{
   const context=(document as Document & {modelContext?:{registerTool:(tool:unknown,options:{signal:AbortSignal})=>void|Promise<void>}}).modelContext;
   if(!context?.registerTool)return;
@@ -34,7 +41,7 @@ export default function DashboardClient({displayName}:{displayName:string}){
   return ()=>lifecycle.abort();
  },[]);
 
- async function save(payload:Record<string,unknown>){setBusy(true);setError('');try{const r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const x=await r.json() as Data & {error?:string};if(!r.ok)throw Error(x.error);setData(x);return true}catch(e){setError(e instanceof Error?e.message:'Could not save');return false}finally{setBusy(false)}}
+ async function save(payload:Record<string,unknown>){setBusy(true);setError('');try{const r=await apiFetch(payload);const x=await r.json() as Data & {error?:string};if(!r.ok)throw Error(x.error);setData(x);return true}catch(e){setError(e instanceof Error?e.message:'Could not save');return false}finally{setBusy(false)}}
  const monthly=useMemo(()=>data?.transactions.filter(t=>t.date.startsWith(month))??[],[data,month]);
  const income=monthly.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
  const spent=monthly.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
@@ -50,7 +57,7 @@ export default function DashboardClient({displayName}:{displayName:string}){
  const initials=displayName.split(/[@\s]+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()).join('') || 'ME';
  const nav=[['Overview',LayoutDashboard],['Transactions',ArrowLeftRight],['Budget',Wallet],['Goals',Target],['Analytics',ChartNoAxesCombined]] as const;
  return <div className="app-shell">
-  <aside className="sidebar"><div className="brand"><div className="brand-icon"><TrendingUp size={22}/></div><span>my<span className="brand-light">money</span></span></div><div className="sidebar-label">WORKSPACE</div><nav aria-label="Main navigation">{nav.map(([name,Icon])=><button key={name} className={`nav-item ${tab===name?'active':''}`} onClick={()=>setTab(name)}><Icon size={19}/>{name}</button>)}</nav><div className="sidebar-foot"><div className="avatar">{initials}</div><div><strong className="user-name">{displayName}</strong><span>My budget</span></div><a className="sign-out" href="/signout-with-chatgpt?return_to=/" target="_top">Sign out</a></div></aside>
+  <aside className="sidebar"><div className="brand"><div className="brand-icon"><TrendingUp size={22}/></div><span>my<span className="brand-light">money</span></span></div><div className="sidebar-label">WORKSPACE</div><nav aria-label="Main navigation">{nav.map(([name,Icon])=><button key={name} className={`nav-item ${tab===name?'active':''}`} onClick={()=>setTab(name)}><Icon size={19}/>{name}</button>)}</nav><div className="sidebar-foot"><div className="avatar">{initials}</div><div><strong className="user-name">{displayName}</strong><span>My budget</span></div>{onSignOut?<button className="sign-out" onClick={onSignOut}>Sign out</button>:<a className="sign-out" href="/signout-with-chatgpt?return_to=/" target="_top">Sign out</a>}</div></aside>
   <main className="main"><header className="topbar"><div className="mobile-brand"><span className="brand-icon"><TrendingUp size={18}/></span> mymoney</div><span className="breadcrumb">Your workspace <span>/</span> {tab}</span><div className="top-actions"><span className="private-pill">Private</span><div className="avatar small">{initials}</div></div></header>
    <div className="content"><div className="heading"><div><p className="eyebrow">PERSONAL FINANCE</p><h1>{tab==='Overview'?'Your money, at a glance':tab}</h1><p className="subhead">{tab==='Overview'?'See where your money goes and what’s left for the month.':tab==='Transactions'?'Every dollar in and out, in one place.':tab==='Budget'?'Set monthly limits and stay on top of spending.':tab==='Goals'?'Make room for saving and investing.':'Explore your spending patterns.'}</p></div><div className="heading-actions"><div className="month-control"><button aria-label="Previous month" onClick={()=>changeMonth(-1)}><ChevronLeft size={17}/></button><span>{monthName(month)}</span><button aria-label="Next month" onClick={()=>changeMonth(1)}><ChevronRight size={17}/></button></div>{(tab==='Overview'||tab==='Transactions')&&<Button onClick={()=>openTx()} className="primary-action"><Plus size={17}/> Add transaction</Button>}</div></div>
     {data?.demo&&<div className="demo-banner"><div><strong>Sample data</strong><span> These numbers are examples. Explore the app, then remove the examples when you’re ready. Anything you add or edit stays.</span></div><Button variant="outline" disabled={busy} onClick={async()=>{if(confirm('Remove the sample transactions, budgets, and goals? Your own entries will stay.'))await save({action:'clearDemo'})}}>Start with my data</Button></div>}
