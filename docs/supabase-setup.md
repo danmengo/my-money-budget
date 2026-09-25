@@ -6,7 +6,7 @@ The publishable key is in `.env.example`. It can be exposed to the browser; data
 
 ## Database
 
-Run `supabase/migrations/20260925000000_budget_schema.sql` once in the project's SQL Editor. It creates the budget tables with row level security, owner policies, and no anonymous table privileges. This migration creates empty tables; it does not import records from the current Site.
+Applied `supabase/migrations/20260925000000_budget_schema.sql` in the project's SQL Editor on September 25, 2026. It created empty budget tables with row level security and owner policies. A verification query confirmed all four tables have RLS enabled, one owner policy each, and no anonymous SELECT privilege. Do not run the create-table script again; this SQL Editor execution is not recorded in Supabase CLI migration history.
 
 ## Authentication
 
