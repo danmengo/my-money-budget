@@ -35,3 +35,7 @@
 
 .income-plan-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:600px){.heading-actions{align-items:stretch}.heading-actions>button{flex:1}.income-plan-value{align-items:flex-start;flex-direction:column}.income-plan-actions{width:100%}.income-plan-actions button{flex:1}}
+
+.analytics-pie-layout{display:flex;align-items:center;gap:26px;min-height:290px}.analytics-pie{width:250px;height:250px;position:relative;flex:none}.analytics-legend{flex:1;display:grid;gap:12px}.analytics-legend>div{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px}.analytics-legend span{display:flex;align-items:center;gap:9px;color:#60797d}.analytics-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}.analytics-legend strong{font-size:13px}.analytics-top{align-items:stretch}
+@media(max-width:1000px){.analytics-pie-layout{flex-direction:column;align-items:stretch}.analytics-pie{margin:auto}.analytics-legend{width:100%}}
+@media(max-width:600px){.analytics-pie{width:210px;height:210px}.analytics-legend{gap:10px}.analytics-legend>div{font-size:12px}}
