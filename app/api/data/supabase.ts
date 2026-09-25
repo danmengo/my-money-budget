@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const categories = ['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Miscellaneous'];
-const initialBudgets = [150000,15000,60000,35000,30000,25000,10000,20000];
+const defaultCategories = ['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
+const initialBudgets = [150000,15000,60000,35000,30000,25000,10000,0,20000];
 const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
 
 export async function handleSupabase(request: NextRequest) {
@@ -21,11 +21,20 @@ export async function handleSupabase(request: NextRequest) {
     const { data: marker, error: markerError } = await client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').maybeSingle();
     if (markerError) throw markerError;
     if (!marker) {
-      const { error } = await client.from('budgets').upsert(categories.map((category, i) => ({ owner_id, category, amount: initialBudgets[i] })), { onConflict: 'owner_id,category', ignoreDuplicates: true });
+      const { error } = await client.from('budgets').upsert(defaultCategories.map((category, i) => ({ owner_id, category, amount: initialBudgets[i] })), { onConflict: 'owner_id,category', ignoreDuplicates: true });
       if (error) throw error;
       const { error: initError } = await client.from('settings').upsert({ owner_id, key: 'initialized', value: 'personal' }, { onConflict: 'owner_id,key', ignoreDuplicates: true });
       if (initError) throw initError;
     }
+
+    const { data: categorySetting, error: categoryError } = await client.from('settings').select('value').eq('owner_id',owner_id).eq('key','expense_categories').maybeSingle();
+    if (categoryError) throw categoryError;
+    let categories: string[] = defaultCategories;
+    if (categorySetting?.value) { try { const parsed=JSON.parse(categorySetting.value); if(Array.isArray(parsed)) categories=parsed.filter(v=>typeof v==='string'&&v.trim()).map(v=>v.trim().slice(0,40)); } catch {} }
+    // Merge any legacy budget categories so existing data is never hidden.
+    const { data: existingBudgets, error: existingBudgetError } = await client.from('budgets').select('category').eq('owner_id',owner_id);
+    if (existingBudgetError) throw existingBudgetError;
+    for (const row of existingBudgets || []) if (!categories.includes(row.category)) categories.push(row.category);
 
     if (request.method === 'POST') {
       const x = await request.json() as Record<string, unknown>;
@@ -43,6 +52,20 @@ export async function handleSupabase(request: NextRequest) {
       } else if (x.action === 'deleteTransaction') {
         if (!validId) return bad('Invalid transaction.');
         ({ error } = await client.from('transactions').delete().eq('owner_id',owner_id).eq('id',id));
+      } else if (x.action === 'addCategory') {
+        const category = typeof x.category === 'string' ? x.category.trim().replace(/\s+/g,' ').slice(0,40) : '';
+        if (!category || categories.some(c=>c.toLowerCase()===category.toLowerCase())) return bad('Enter a new category name.');
+        categories=[...categories,category];
+        const setResult=await client.from('settings').upsert({owner_id,key:'expense_categories',value:JSON.stringify(categories)},{onConflict:'owner_id,key'}); if(setResult.error) throw setResult.error;
+        ({error}=await client.from('budgets').upsert({owner_id,category,amount:0,demo:false},{onConflict:'owner_id,category'}));
+      } else if (x.action === 'deleteCategory') {
+        const category=String(x.category||'');
+        if (!categories.includes(category)) return bad('Category not found.');
+        const {count,error:countError}=await client.from('transactions').select('id',{count:'exact',head:true}).eq('owner_id',owner_id).eq('category',category); if(countError) throw countError;
+        if((count||0)>0) return bad('Move or delete transactions in this category before removing it.');
+        categories=categories.filter(c=>c!==category);
+        const setResult=await client.from('settings').upsert({owner_id,key:'expense_categories',value:JSON.stringify(categories)},{onConflict:'owner_id,key'}); if(setResult.error) throw setResult.error;
+        ({error}=await client.from('budgets').delete().eq('owner_id',owner_id).eq('category',category));
       } else if (x.action === 'budget') {
         if (!categories.includes(String(x.category)) || !Number.isSafeInteger(amount) || amount < 0 || amount > 100000000) return bad('Enter a valid budget amount.');
         ({ error } = await client.from('budgets').upsert({ owner_id, category: x.category, amount, demo: false }, { onConflict: 'owner_id,category' }));
@@ -81,7 +104,7 @@ export async function handleSupabase(request: NextRequest) {
     ]);
     for (const result of [t,b,g,s,mi]) if (result.error) throw result.error;
     const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
-    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), goals:g.data, demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0 });
+    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0 });
   }
   try { return await run(); }
   catch (error) { console.error('Supabase budget request failed', error); return bad('Could not access your budget. Please try again.',503); }
