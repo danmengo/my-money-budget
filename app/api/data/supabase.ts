@@ -46,6 +46,9 @@ export async function handleSupabase(request: NextRequest) {
       } else if (x.action === 'budget') {
         if (!categories.includes(String(x.category)) || !Number.isSafeInteger(amount) || amount < 0 || amount > 100000000) return bad('Enter a valid budget amount.');
         ({ error } = await client.from('budgets').upsert({ owner_id, category: x.category, amount, demo: false }, { onConflict: 'owner_id,category' }));
+      } else if (x.action === 'monthlyIncome') {
+        if (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000000) return bad('Enter a valid monthly income.');
+        ({ error } = await client.from('settings').upsert({ owner_id, key: 'monthly_income', value: String(amount) }, { onConflict: 'owner_id,key' }));
       } else if (x.action === 'goal') {
         const target = Math.round(Number(x.target)*100), current = Math.round(Number(x.current)*100);
         if (!name || !['saving','investing'].includes(String(x.type)) || !Number.isSafeInteger(target) || target <= 0 || target > 1000000000 || !Number.isSafeInteger(current) || current < 0 || current > 1000000000) return bad('Enter valid goal details.');
@@ -69,14 +72,16 @@ export async function handleSupabase(request: NextRequest) {
       if (error) throw error;
     }
 
-    const [t,b,g,s] = await Promise.all([
+    const [t,b,g,s,mi] = await Promise.all([
       client.from('transactions').select('id,date,name,amount,category,type').eq('owner_id',owner_id).order('date',{ascending:false}).order('id',{ascending:false}),
       client.from('budgets').select('category,amount').eq('owner_id',owner_id),
       client.from('goals').select('id,name,type,target,current').eq('owner_id',owner_id).order('id'),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').single(),
+      client.from('settings').select('value').eq('owner_id',owner_id).eq('key','monthly_income').maybeSingle(),
     ]);
-    for (const result of [t,b,g,s]) if (result.error) throw result.error;
-    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), goals:g.data, demo:s.data?.value === 'demo' });
+    for (const result of [t,b,g,s,mi]) if (result.error) throw result.error;
+    const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
+    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), goals:g.data, demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0 });
   }
   try { return await run(); }
   catch (error) { console.error('Supabase budget request failed', error); return bad('Could not access your budget. Please try again.',503); }
