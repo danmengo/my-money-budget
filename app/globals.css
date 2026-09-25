@@ -29,3 +29,6 @@
   .auth-form-side{height:100dvh;min-height:0;padding:34px clamp(40px,5vw,72px)}
   .auth-card{width:min(100%,500px)}
 }
+
+.income-plan{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px}.income-plan h2{margin:3px 0 6px;font-size:20px}.income-plan p{margin:0;color:#7b9094;font-size:14px;max-width:620px;line-height:1.5}.income-plan-value{display:flex;align-items:center;gap:14px;flex:none}.income-plan-value strong{font-size:30px;letter-spacing:-1px}.allocation-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.allocation-grid article{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:7px}.allocation-grid span{font-size:12px;color:#768c90;font-weight:700}.allocation-grid strong{font-size:24px}.allocation-grid small{font-size:12px;color:#8a9da0;line-height:1.35}.allocation-grid article.over{border-color:#e3b3ae;background:#fff8f7}.allocation-grid article.over strong{color:#a94f45}
+@media(max-width:820px){.income-plan{align-items:flex-start;flex-direction:column}.income-plan-value{width:100%;justify-content:space-between}.allocation-grid{grid-template-columns:1fr}.allocation-grid article{padding:16px}}
