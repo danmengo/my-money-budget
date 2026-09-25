@@ -17,3 +17,15 @@
 
 /* Decorative income trend arrow is desktop-only; it crowds the compact stat card on phones. */
 @media(max-width:640px){.stat-card .stat-deco{display:none}}
+
+
+/* Auth layout polish */
+@media(min-width:851px){
+  .auth-page{height:100dvh;min-height:100dvh;overflow:hidden}
+  .auth-showcase{height:100dvh;min-height:0;padding:34px clamp(38px,5vw,76px)}
+  .auth-pitch{padding:42px 0;max-width:540px}
+  .auth-pitch h1{font-size:clamp(40px,3.8vw,58px);line-height:1.04;letter-spacing:-2.5px}
+  .auth-pitch>p{font-size:17px;margin:22px 0 32px}
+  .auth-form-side{height:100dvh;min-height:0;padding:34px clamp(40px,5vw,72px)}
+  .auth-card{width:min(100%,500px)}
+}
