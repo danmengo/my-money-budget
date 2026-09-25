@@ -11,9 +11,9 @@ import { getSupabase } from './supabase-client';
 
 type Tx={id:number;date:string;name:string;amount:number;category:string;type:string};
 type Budget={category:string;amount:number};type Goal={id:number;name:string;type:string;target:number;current:number};
-type Data={transactions:Tx[];budgets:Budget[];goals:Goal[];demo:boolean;monthlyIncome:number};
-const categories=['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Miscellaneous'];
-const palette=['#166761','#357e98','#d1973d','#8e68a8','#4e8b70','#d16e63','#7694ad','#ac876e'];
+type Data={transactions:Tx[];budgets:Budget[];categories:string[];goals:Goal[];demo:boolean;monthlyIncome:number};
+const fallbackCategories=['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
+const palette=['#166761','#357e98','#d1973d','#8e68a8','#4e8b70','#d16e63','#7694ad','#ac876e','#5d7c68','#b6788c','#6688b0','#b58b45'];
 const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n/100);
 const monthName=(m:string)=>new Date(`${m}-15T12:00:00`).toLocaleDateString('en-US',{month:'long',year:'numeric'});
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -26,6 +26,8 @@ export default function DashboardClient({displayName,accessToken,onSignOut}:{dis
  const [goalOpen,setGoalOpen]=useState(false),[editGoal,setEditGoal]=useState<Goal|null>(null),[goalForm,setGoalForm]=useState({name:'',type:'saving',target:'',current:''});
  const [budgetEdit,setBudgetEdit]=useState<string|null>(null),[budgetAmount,setBudgetAmount]=useState('');
  const [incomeEdit,setIncomeEdit]=useState(false),[incomeAmount,setIncomeAmount]=useState('');
+ const [categoryOpen,setCategoryOpen]=useState(false),[categoryName,setCategoryName]=useState('');
+ const [budgetSort,setBudgetSort]=useState('default');
  const [query,setQuery]=useState(''),[filter,setFilter]=useState('All');
  async function apiFetch(payload?:Record<string,unknown>){
   const headers:Record<string,string>={};
@@ -43,6 +45,7 @@ export default function DashboardClient({displayName,accessToken,onSignOut}:{dis
  },[]);
 
  async function save(payload:Record<string,unknown>){setBusy(true);setError('');try{const r=await apiFetch(payload);const x=await r.json() as Data & {error?:string};if(!r.ok)throw Error(x.error);setData(x);return true}catch(e){setError(e instanceof Error?e.message:'Could not save');return false}finally{setBusy(false)}}
+ const categories=data?.categories?.length?data.categories:fallbackCategories;
  const monthly=useMemo(()=>data?.transactions.filter(t=>t.date.startsWith(month))??[],[data,month]);
  const income=monthly.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
  const spent=monthly.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
@@ -52,7 +55,9 @@ export default function DashboardClient({displayName,accessToken,onSignOut}:{dis
  const plannedIncome=data?.monthlyIncome??0;
  const plannedRemaining=plannedIncome-budgetTotal;
  const allocationPercent=plannedIncome?Math.min(100,Math.round(budgetTotal/plannedIncome*100)):0;
- const breakdown=categories.map((name,i)=>({name,value:monthly.filter(t=>t.type==='expense'&&t.category===name).reduce((a,t)=>a+t.amount,0),color:palette[i]})).filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
+ const categoryColor=(name:string)=>palette[Math.max(0,categories.indexOf(name))%palette.length];
+ const breakdown=categories.map(name=>({name,value:monthly.filter(t=>t.type==='expense'&&t.category===name).reduce((a,t)=>a+t.amount,0),color:categoryColor(name)})).filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
+ const sortedBudgets=(()=>{const rows=categories.map(category=>({category,amount:data?.budgets.find(b=>b.category===category)?.amount??0}));if(budgetSort==='high')return [...rows].sort((a,b)=>b.amount-a.amount);if(budgetSort==='low')return [...rows].sort((a,b)=>a.amount-b.amount);return rows})();
  function changeMonth(n:number){const [y,m]=month.split('-').map(Number);const d=new Date(y,m-1+n,1);setMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`)}
  function openTx(t?:Tx){setEditTx(t??null);setTxForm(t?{name:t.name,amount:(t.amount/100).toFixed(2),date:t.date,category:t.category,type:t.type}:{name:'',amount:'',date:today(),category:'Food',type:'expense'});setTxOpen(true)}
  function openIncome(){setEditTx(null);setTxForm({name:'Paycheck',amount:'',date:today(),category:'income',type:'income'});setTxOpen(true)}
