@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790369717569,
+      "tag": "0000_loving_harry_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790370907944,
+      "tag": "0001_abandoned_stature",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790371366625,
+      "tag": "0002_cold_stranger",
+      "breakpoints": true
+    }
+  ]
+}
