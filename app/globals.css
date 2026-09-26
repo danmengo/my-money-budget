@@ -59,3 +59,5 @@
 .paid-badge{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:32px;padding:0 10px;border-radius:999px;background:#e8f5ef;color:#287360;font-size:12px;font-weight:800}
 
 .scheduled-badge{display:inline-flex;align-items:center;justify-content:center;min-width:78px;height:32px;padding:0 10px;border-radius:999px;background:#f3f5f5;color:#718689;font-size:12px;font-weight:800}
+
+.budget-row.over-budget{border-color:#e4bbb6;background:#fff9f8}.budget-row.over-budget .budget-details>div>strong,.budget-row.over-budget .budget-details>small{color:#a34d45}.budget-progress-over [data-slot="progress-indicator"]{background:#b94f46!important}
