@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
-const json=(body:unknown,status=200)=>NextResponse.json(body,{status});
+const headers={ 'Cache-Control':'no-store, max-age=0' };
+const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers});
 
 export async function POST(request:NextRequest){
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +13,8 @@ export async function POST(request:NextRequest){
   if(!url||!publishable||!token) return json({error:'Sign in required.'},401);
   if(!serviceRole) return json({error:'Account deletion is not configured yet.'},503);
 
+  const contentLength=Number(request.headers.get('content-length')||0);
+  if(contentLength>2048) return json({error:'Request is too large.'},413);
   let body:{confirmation?:string}={};
   try{body=await request.json()}catch{}
   if(body.confirmation!=='DELETE') return json({error:'Type DELETE to confirm account deletion.'},400);
@@ -27,17 +30,13 @@ export async function POST(request:NextRequest){
   const admin=createClient(url,serviceRole,{auth:{persistSession:false,autoRefreshToken:false}});
   const ownerId=user.id;
 
-  // Remove application data explicitly before deleting the auth user.
-  // This also makes the behavior predictable even if a future table does not cascade.
-  const tables=['feedback','transactions','recurring_items','goals','budgets','settings','admin_users'] as const;
-  for(const table of tables){
-    const column=table==='admin_users'?'user_id':'owner_id';
-    const {error}=await admin.from(table).delete().eq(column,ownerId);
-    if(error) return json({error:`Could not delete account data from ${table}.`},500);
-  }
-
+  // All user-owned application tables reference auth.users with ON DELETE CASCADE.
+  // Delete the auth user as one authoritative operation so the database handles dependent rows.
   const {error:deleteUserError}=await admin.auth.admin.deleteUser(ownerId);
-  if(deleteUserError) return json({error:'Your data was removed, but the sign-in account could not be deleted. Please contact support.'},500);
+  if(deleteUserError){
+    console.error('Account deletion failed',deleteUserError);
+    return json({error:'Could not delete your account. Please try again or contact support.'},500);
+  }
 
   return json({ok:true});
 }
