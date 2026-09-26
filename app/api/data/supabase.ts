@@ -95,8 +95,20 @@ export async function handleSupabase(request: NextRequest) {
         const startDate=typeof x.start_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.start_date)?x.start_date:'';
         if(!startDate) return bad('Choose a valid start date.');
         const row={owner_id,name,amount,category:recurringCategory,type:recurringType,frequency:'monthly',day_of_month:day,start_date:startDate,active:x.active!==false};
-        if(x.id!==undefined) ({error}=await client.from('recurring_items').update(row).eq('owner_id',owner_id).eq('id',id));
-        else ({error}=await client.from('recurring_items').insert(row));
+        if(x.id!==undefined) {
+          ({error}=await client.from('recurring_items').update(row).eq('owner_id',owner_id).eq('id',id));
+          if(!error){
+            const now=new Date();
+            const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            const syncResult=await client.from('transactions').update({
+              name,
+              amount,
+              category:recurringType==='income'?'income':recurringCategory,
+              type:recurringType
+            }).eq('owner_id',owner_id).eq('recurring_item_id',id).gte('date',`${ym}-01`).lte('date',`${ym}-31`);
+            if(syncResult.error) throw syncResult.error;
+          }
+        } else ({error}=await client.from('recurring_items').insert(row));
       } else if (x.action === 'markRecurringPaid') {
         if(!validId || typeof x.date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.date)) return bad('Invalid recurring payment.');
         const {data:item,error:itemError}=await client.from('recurring_items').select('id,name,amount,category,type').eq('owner_id',owner_id).eq('id',id).single(); if(itemError) throw itemError;
