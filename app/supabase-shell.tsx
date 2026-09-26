@@ -92,7 +92,7 @@ export default function SupabaseShell() {
         </form>
         {sent && <button className="auth-link-button" type="button" onClick={() => { setSent(false); setCode(''); setMessage(''); }}>Use a different email</button>}
         {message && <p className="auth-message" role="status">{message}</p>}
-        {!sent && <p className="auth-terms">By continuing, you agree to use My Money for your personal budgeting.</p>}
+        {!sent && <p className="auth-terms">By continuing, you acknowledge the <a href="/privacy">Privacy Policy</a>.</p>}
       </div>
     </section>
   </main>;
