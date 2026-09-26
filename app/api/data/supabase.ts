@@ -182,5 +182,11 @@ export async function handleSupabase(request: NextRequest) {
     return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0 });
   }
   try { return await run(); }
-  catch (error) { console.error('Supabase budget request failed', error); return bad('Could not access your budget. Please try again.',503); }
+  catch (error) {
+    console.error('Supabase budget request failed', error);
+    const message = error && typeof error === 'object' && 'message' in error ? String((error as {message?:unknown}).message || '') : '';
+    const code = error && typeof error === 'object' && 'code' in error ? String((error as {code?:unknown}).code || '') : '';
+    const detail = [code,message].filter(Boolean).join(' — ').slice(0,240);
+    return bad(detail ? `Could not access your budget: ${detail}` : 'Could not access your budget. Please try again.',503);
+  }
 }
