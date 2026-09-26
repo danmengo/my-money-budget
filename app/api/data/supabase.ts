@@ -36,6 +36,26 @@ export async function handleSupabase(request: NextRequest) {
     if (existingBudgetError) throw existingBudgetError;
     for (const row of existingBudgets || []) if (!categories.includes(row.category)) categories.push(row.category);
 
+    // Materialize due recurring items into real transactions for the selected/current month.
+    // This keeps Budget, Analytics, and Transactions aligned without double-counting.
+    const now = new Date();
+    const currentYm = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const monthLast = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const { data: recurringForAuto, error: recurringAutoError } = await client.from('recurring_items').select('id,name,amount,category,type,day_of_month,start_date,active').eq('owner_id',owner_id).eq('active',true);
+    if (recurringAutoError) throw recurringAutoError;
+    for (const item of recurringForAuto || []) {
+      if (!item.start_date || item.start_date.slice(0,7) > currentYm) continue;
+      const dueDay = Math.min(item.day_of_month, monthLast);
+      const dueDate = `${currentYm}-${String(dueDay).padStart(2,'0')}`;
+      const todayDate = `${currentYm}-${String(now.getDate()).padStart(2,'0')}`;
+      if (dueDate > todayDate) continue;
+      const { count, error: existingError } = await client.from('transactions').select('id',{count:'exact',head:true}).eq('owner_id',owner_id).eq('recurring_item_id',item.id).eq('date',dueDate);
+      if (existingError) throw existingError;
+      if ((count || 0) > 0) continue;
+      const { error: insertError } = await client.from('transactions').insert({owner_id,date:dueDate,name:item.name,amount:item.amount,category:item.type==='income'?'income':item.category,type:item.type,demo:false,recurring_item_id:item.id});
+      if (insertError && insertError.code !== '23505') throw insertError;
+    }
+
     if (request.method === 'POST') {
       const x = await request.json() as Record<string, unknown>;
       let error: { message: string } | null = null;
