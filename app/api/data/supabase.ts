@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const defaultCategories = ['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
 const initialBudgets = [150000,15000,60000,35000,30000,25000,10000,0,20000];
-const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
+const responseHeaders = { 'Cache-Control': 'no-store, max-age=0' };
+const bad = (message: string, status = 400) => NextResponse.json({ error: message }, { status, headers: responseHeaders });
 
 export async function handleSupabase(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -89,6 +90,8 @@ export async function handleSupabase(request: NextRequest) {
     }
 
     if (request.method === 'POST') {
+      const contentLength=Number(request.headers.get('content-length')||0);
+      if(contentLength>16384) return bad('Request is too large.',413);
       const x = await request.json() as Record<string, unknown>;
       let error: { message: string } | null = null;
       const id = Number(x.id);
@@ -208,14 +211,11 @@ export async function handleSupabase(request: NextRequest) {
     ]);
     for (const result of [t,b,g,s,mi,r,admin]) if (result.error) throw result.error;
     const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
-    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0, isAdmin: !!admin.data });
+    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0, isAdmin: !!admin.data },{headers:responseHeaders});
   }
   try { return await run(); }
   catch (error) {
     console.error('Supabase budget request failed', error);
-    const message = error && typeof error === 'object' && 'message' in error ? String((error as {message?:unknown}).message || '') : '';
-    const code = error && typeof error === 'object' && 'code' in error ? String((error as {code?:unknown}).code || '') : '';
-    const detail = [code,message].filter(Boolean).join(' — ').slice(0,240);
-    return bad(detail ? `Could not access your budget: ${detail}` : 'Could not access your budget. Please try again.',503);
+    return bad('Could not access your budget. Please try again.',503);
   }
 }
