@@ -59,7 +59,7 @@ export default function SupabaseShell() {
   }
 
   if (loading) return <main className="app-loading-page"><div className="app-loading-card"><div className="app-loading-brand"><span className="auth-logo-icon"><TrendingUp size={20}/></span><span>my<span>money</span></span></div><div className="app-loading-copy"><strong>Loading your money</strong><span>Getting your budget ready…</span></div><div className="app-loading-bar"><i/></div></div></main>;
-  if (session) return <DashboardClient displayName={session.user.user_metadata?.full_name || session.user.email || 'My budget'} accessToken={session.access_token} onSignOut={() => { void supabase.auth.signOut(); }} />;
+  if (session) return <DashboardClient displayName={session.user.user_metadata?.full_name || session.user.email || 'My budget'} email={session.user.email || undefined} accessToken={session.access_token} onSignOut={() => { void supabase.auth.signOut(); }} />;
 
   return <main className="auth-page">
     <section className="auth-showcase">
