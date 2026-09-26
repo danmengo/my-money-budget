@@ -36,22 +36,40 @@ export async function handleSupabase(request: NextRequest) {
     if (existingBudgetError) throw existingBudgetError;
     for (const row of existingBudgets || []) if (!categories.includes(row.category)) categories.push(row.category);
 
-    // Materialize due recurring items into real transactions for the selected/current month.
-    // This keeps Budget, Analytics, and Transactions aligned without double-counting.
+    // Keep exactly one posted transaction per recurring item per month.
+    // Existing linked occurrences are repaired in place when the recurring rule changes.
     const now = new Date();
     const currentYm = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const monthLast = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const monthStart = `${currentYm}-01`;
+    const monthEnd = `${currentYm}-${String(monthLast).padStart(2,'0')}`;
+    const todayDate = `${currentYm}-${String(now.getDate()).padStart(2,'0')}`;
     const { data: recurringForAuto, error: recurringAutoError } = await client.from('recurring_items').select('id,name,amount,category,type,day_of_month,start_date,active').eq('owner_id',owner_id).eq('active',true);
     if (recurringAutoError) throw recurringAutoError;
     for (const item of recurringForAuto || []) {
       if (!item.start_date || item.start_date.slice(0,7) > currentYm) continue;
       const dueDay = Math.min(item.day_of_month, monthLast);
       const dueDate = `${currentYm}-${String(dueDay).padStart(2,'0')}`;
-      const todayDate = `${currentYm}-${String(now.getDate()).padStart(2,'0')}`;
+      const { data: linked, error: linkedError } = await client.from('transactions').select('id,date').eq('owner_id',owner_id).eq('recurring_item_id',item.id).gte('date',monthStart).lte('date',monthEnd).order('id',{ascending:true});
+      if (linkedError) throw linkedError;
+      if ((linked || []).length > 0) {
+        const keep = linked![0];
+        const syncResult = await client.from('transactions').update({
+          date: dueDate,
+          name: item.name,
+          amount: item.amount,
+          category: item.type==='income'?'income':item.category,
+          type: item.type
+        }).eq('owner_id',owner_id).eq('id',keep.id);
+        if (syncResult.error) throw syncResult.error;
+        const duplicateIds=(linked || []).slice(1).map(row=>row.id);
+        if (duplicateIds.length) {
+          const deleteResult=await client.from('transactions').delete().eq('owner_id',owner_id).in('id',duplicateIds);
+          if (deleteResult.error) throw deleteResult.error;
+        }
+        continue;
+      }
       if (dueDate > todayDate) continue;
-      const { count, error: existingError } = await client.from('transactions').select('id',{count:'exact',head:true}).eq('owner_id',owner_id).eq('recurring_item_id',item.id).eq('date',dueDate);
-      if (existingError) throw existingError;
-      if ((count || 0) > 0) continue;
       const { error: insertError } = await client.from('transactions').insert({owner_id,date:dueDate,name:item.name,amount:item.amount,category:item.type==='income'?'income':item.category,type:item.type,demo:false,recurring_item_id:item.id});
       if (insertError && insertError.code !== '23505') throw insertError;
     }
