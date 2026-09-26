@@ -165,7 +165,7 @@ export async function handleSupabase(request: NextRequest) {
       } else if (x.action === 'feedback') {
         const message=typeof x.message==='string'?x.message.trim().slice(0,2000):'';
         if(!message) return bad('Write a message before sending feedback.');
-        ({error}=await client.from('feedback').insert({owner_id,message}));
+        ({error}=await client.from('feedback').insert({owner_id,email:user.email||null,message}));
       } else if (x.action === 'resetBudget') {
         ({error}=await client.from('budgets').update({amount:0,demo:false}).eq('owner_id',owner_id));
       } else if (x.action === 'budget') {
@@ -197,17 +197,18 @@ export async function handleSupabase(request: NextRequest) {
       if (error) throw error;
     }
 
-    const [t,b,g,s,mi,r] = await Promise.all([
+    const [t,b,g,s,mi,r,admin] = await Promise.all([
       client.from('transactions').select('id,date,name,amount,category,type,recurring_item_id').eq('owner_id',owner_id).order('date',{ascending:false}).order('id',{ascending:false}),
       client.from('budgets').select('category,amount').eq('owner_id',owner_id),
       client.from('goals').select('id,name,type,target,current').eq('owner_id',owner_id).order('id'),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').single(),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','monthly_income').maybeSingle(),
       client.from('recurring_items').select('id,name,amount,category,type,frequency,day_of_month,start_date,active,end_type,end_date,max_occurrences,ended_at').eq('owner_id',owner_id).order('active',{ascending:false}).order('day_of_month'),
+      client.from('admin_users').select('user_id').eq('user_id',owner_id).maybeSingle(),
     ]);
-    for (const result of [t,b,g,s,mi,r]) if (result.error) throw result.error;
+    for (const result of [t,b,g,s,mi,r,admin]) if (result.error) throw result.error;
     const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
-    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0 });
+    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0, isAdmin: !!admin.data });
   }
   try { return await run(); }
   catch (error) {
