@@ -25,7 +25,7 @@ A clean personal-finance dashboard for tracking income, expenses, monthly budget
 
 ## Security
 
-Every financial row has an authenticated owner. Supabase RLS policies restrict select, insert, update, and delete operations to that owner. The application uses the signed-in user's access token and a public Supabase publishable key; it does not use a service-role key in the browser or API route.
+Every financial row has an authenticated owner. Supabase RLS policies restrict select, insert, update, and delete operations to that owner. The application uses the signed-in user's access token and a public Supabase publishable key; normal data APIs do not use a service-role key. The account-deletion API alone uses a server-only Supabase secret after verifying the caller with Supabase Auth. The secret is never sent to the browser.
 
 Never commit database passwords, OAuth client secrets, Supabase secret/service-role keys, or real financial data.
 
@@ -47,3 +47,7 @@ The schema and RLS policies live in `supabase/migrations/20260925000000_budget_s
 ## Deployment
 
 The production app is deployed to Cloudflare Workers and served at https://budget.danmengo.com.
+
+## Account deletion verification
+
+Run `pnpm test:account-deletion` for isolated request-handler regression tests. See [the live verification checklist](docs/account-deletion-verification.md) for the separate throwaway-account and database checks.
