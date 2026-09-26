@@ -70,7 +70,7 @@ export async function handleSupabase(request: NextRequest) {
         continue;
       }
       if (dueDate > todayDate) continue;
-      const { error: insertError } = await client.from('transactions').insert({owner_id,date:dueDate,name:item.name,amount:item.amount,category:item.type==='income'?'income':item.category,type:item.type,demo:false,recurring_item_id:item.id});
+      const { error: insertError } = await client.from('transactions').insert({owner_id,date:dueDate,name:item.name,amount:item.amount,category:item.type==='expense'?item.category:item.type,type:item.type,demo:false,recurring_item_id:item.id});
       if (insertError && insertError.code !== '23505') throw insertError;
     }
 
@@ -106,9 +106,9 @@ export async function handleSupabase(request: NextRequest) {
         ({error}=await client.from('budgets').delete().eq('owner_id',owner_id).eq('category',category));
       } else if (x.action === 'recurring') {
         const recurringType=String(x.type);
-        const recurringCategory=recurringType==='income'?'income':String(x.category);
+        const recurringCategory=recurringType==='expense'?String(x.category):recurringType;
         const day=Number(x.day_of_month);
-        if (!name || !['expense','income'].includes(recurringType) || !Number.isSafeInteger(amount) || amount<=0 || amount>100000000 || !Number.isInteger(day) || day<1 || day>31 || (recurringType==='expense'&&!categories.includes(recurringCategory))) return bad('Check the recurring item details.');
+        if (!name || !['expense','income','saving','investing'].includes(recurringType) || !Number.isSafeInteger(amount) || amount<=0 || amount>100000000 || !Number.isInteger(day) || day<1 || day>31 || (recurringType==='expense'&&!categories.includes(recurringCategory))) return bad('Check the recurring item details.');
         if (x.id !== undefined && !validId) return bad('Invalid recurring item.');
         const startDate=typeof x.start_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.start_date)?x.start_date:'';
         if(!startDate) return bad('Choose a valid start date.');
@@ -121,7 +121,7 @@ export async function handleSupabase(request: NextRequest) {
             const syncResult=await client.from('transactions').update({
               name,
               amount,
-              category:recurringType==='income'?'income':recurringCategory,
+              category:recurringType==='expense'?recurringCategory:recurringType,
               type:recurringType
             }).eq('owner_id',owner_id).eq('recurring_item_id',id).gte('date',`${ym}-01`).lte('date',`${ym}-31`);
             if(syncResult.error) throw syncResult.error;
@@ -133,7 +133,7 @@ export async function handleSupabase(request: NextRequest) {
         const monthPrefix=x.date.slice(0,7);
         const {count,error:dupError}=await client.from('transactions').select('id',{count:'exact',head:true}).eq('owner_id',owner_id).eq('recurring_item_id',id).gte('date',`${monthPrefix}-01`).lte('date',`${monthPrefix}-31`); if(dupError) throw dupError;
         if((count||0)>0) return bad('This recurring item is already marked paid for that month.');
-        ({error}=await client.from('transactions').insert({owner_id,date:x.date,name:item.name,amount:item.amount,category:item.type==='income'?'income':item.category,type:item.type,demo:false,recurring_item_id:id}));
+        ({error}=await client.from('transactions').insert({owner_id,date:x.date,name:item.name,amount:item.amount,category:item.type==='expense'?item.category:item.type,type:item.type,demo:false,recurring_item_id:id}));
       } else if (x.action === 'toggleRecurring') {
         if(!validId || typeof x.active!=='boolean') return bad('Invalid recurring item.');
         ({error}=await client.from('recurring_items').update({active:x.active}).eq('owner_id',owner_id).eq('id',id));
