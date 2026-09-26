@@ -130,7 +130,7 @@ export async function handleSupabase(request: NextRequest) {
         const endDate=endType==='date'&&typeof x.end_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.end_date)?x.end_date:null;
         const maxOccurrences=endType==='count'?Number(x.max_occurrences):null;
         if(endType==='date'&&!endDate) return bad('Choose a valid end date.');
-        if(endType==='count'&&(!Number.isInteger(maxOccurrences)||maxOccurrences!<1||maxOccurrences>1200)) return bad('Choose a valid number of payments.');
+        if(endType==='count'&&(!Number.isInteger(maxOccurrences)||maxOccurrences<1||maxOccurrences>1200)) return bad('Choose a valid number of payments.');
         const row={owner_id,name,amount,category:recurringCategory,type:recurringType,frequency:'monthly',day_of_month:day,start_date:startDate,end_type:endType,end_date:endDate,max_occurrences:maxOccurrences,active:x.active!==false,ended_at:null};
         if(x.id!==undefined) {
           ({error}=await client.from('recurring_items').update(row).eq('owner_id',owner_id).eq('id',id));
