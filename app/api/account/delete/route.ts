@@ -6,7 +6,7 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status});
 export async function POST(request:NextRequest){
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishable=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const serviceRole=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRole=process.env.SUPABASE_SECRET_KEY;
   const token=request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
 
   if(!url||!publishable||!token) return json({error:'Sign in required.'},401);
