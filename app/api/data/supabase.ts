@@ -54,6 +54,11 @@ export async function handleSupabase(request: NextRequest) {
       if (linkedError) throw linkedError;
       if ((linked || []).length > 0) {
         const keep = linked![0];
+        const duplicateIds=(linked || []).slice(1).map(row=>row.id);
+        if (duplicateIds.length) {
+          const deleteResult=await client.from('transactions').delete().eq('owner_id',owner_id).in('id',duplicateIds);
+          if (deleteResult.error) throw deleteResult.error;
+        }
         const syncResult = await client.from('transactions').update({
           date: dueDate,
           name: item.name,
@@ -62,11 +67,6 @@ export async function handleSupabase(request: NextRequest) {
           type: item.type
         }).eq('owner_id',owner_id).eq('id',keep.id);
         if (syncResult.error) throw syncResult.error;
-        const duplicateIds=(linked || []).slice(1).map(row=>row.id);
-        if (duplicateIds.length) {
-          const deleteResult=await client.from('transactions').delete().eq('owner_id',owner_id).in('id',duplicateIds);
-          if (deleteResult.error) throw deleteResult.error;
-        }
         continue;
       }
       if (dueDate > todayDate) continue;
