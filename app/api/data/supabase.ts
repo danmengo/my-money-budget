@@ -166,6 +166,8 @@ export async function handleSupabase(request: NextRequest) {
         const message=typeof x.message==='string'?x.message.trim().slice(0,2000):'';
         if(!message) return bad('Write a message before sending feedback.');
         ({error}=await client.from('feedback').insert({owner_id,message}));
+      } else if (x.action === 'resetBudget') {
+        ({error}=await client.from('budgets').update({amount:0,demo:false}).eq('owner_id',owner_id));
       } else if (x.action === 'budget') {
         if (!categories.includes(String(x.category)) || !Number.isSafeInteger(amount) || amount < 0 || amount > 100000000) return bad('Enter a valid budget amount.');
         ({ error } = await client.from('budgets').upsert({ owner_id, category: x.category, amount, demo: false }, { onConflict: 'owner_id,category' }));
