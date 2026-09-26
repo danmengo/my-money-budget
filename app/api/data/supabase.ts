@@ -44,12 +44,26 @@ export async function handleSupabase(request: NextRequest) {
     const monthStart = `${currentYm}-01`;
     const monthEnd = `${currentYm}-${String(monthLast).padStart(2,'0')}`;
     const todayDate = `${currentYm}-${String(now.getDate()).padStart(2,'0')}`;
-    const { data: recurringForAuto, error: recurringAutoError } = await client.from('recurring_items').select('id,name,amount,category,type,day_of_month,start_date,active').eq('owner_id',owner_id).eq('active',true);
+    const { data: recurringForAuto, error: recurringAutoError } = await client.from('recurring_items').select('id,name,amount,category,type,day_of_month,start_date,active,end_type,end_date,max_occurrences,ended_at').eq('owner_id',owner_id).eq('active',true);
     if (recurringAutoError) throw recurringAutoError;
     for (const item of recurringForAuto || []) {
       if (!item.start_date || item.start_date.slice(0,7) > currentYm) continue;
       const dueDay = Math.min(item.day_of_month, monthLast);
       const dueDate = `${currentYm}-${String(dueDay).padStart(2,'0')}`;
+      if(item.end_type==='date' && item.end_date && dueDate>item.end_date){
+        const ended=await client.from('recurring_items').update({active:false,ended_at:new Date().toISOString()}).eq('owner_id',owner_id).eq('id',item.id);
+        if(ended.error) throw ended.error;
+        continue;
+      }
+      if(item.end_type==='count' && item.max_occurrences){
+        const {count:occurrenceCount,error:occurrenceError}=await client.from('transactions').select('id',{count:'exact',head:true}).eq('owner_id',owner_id).eq('recurring_item_id',item.id);
+        if(occurrenceError) throw occurrenceError;
+        if((occurrenceCount||0)>=item.max_occurrences){
+          const ended=await client.from('recurring_items').update({active:false,ended_at:new Date().toISOString()}).eq('owner_id',owner_id).eq('id',item.id);
+          if(ended.error) throw ended.error;
+          continue;
+        }
+      }
       const { data: linked, error: linkedError } = await client.from('transactions').select('id,date').eq('owner_id',owner_id).eq('recurring_item_id',item.id).gte('date',monthStart).lte('date',monthEnd).order('id',{ascending:true});
       if (linkedError) throw linkedError;
       if ((linked || []).length > 0) {
@@ -63,7 +77,7 @@ export async function handleSupabase(request: NextRequest) {
           date: dueDate,
           name: item.name,
           amount: item.amount,
-          category: item.type==='income'?'income':item.category,
+          category: item.type==='expense'?item.category:item.type,
           type: item.type
         }).eq('owner_id',owner_id).eq('id',keep.id);
         if (syncResult.error) throw syncResult.error;
@@ -112,7 +126,12 @@ export async function handleSupabase(request: NextRequest) {
         if (x.id !== undefined && !validId) return bad('Invalid recurring item.');
         const startDate=typeof x.start_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.start_date)?x.start_date:'';
         if(!startDate) return bad('Choose a valid start date.');
-        const row={owner_id,name,amount,category:recurringCategory,type:recurringType,frequency:'monthly',day_of_month:day,start_date:startDate,active:x.active!==false};
+        const endType=['never','date','count'].includes(String(x.end_type))?String(x.end_type):'never';
+        const endDate=endType==='date'&&typeof x.end_date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x.end_date)?x.end_date:null;
+        const maxOccurrences=endType==='count'?Number(x.max_occurrences):null;
+        if(endType==='date'&&!endDate) return bad('Choose a valid end date.');
+        if(endType==='count'&&(!Number.isInteger(maxOccurrences)||maxOccurrences!<1||maxOccurrences>1200)) return bad('Choose a valid number of payments.');
+        const row={owner_id,name,amount,category:recurringCategory,type:recurringType,frequency:'monthly',day_of_month:day,start_date:startDate,end_type:endType,end_date:endDate,max_occurrences:maxOccurrences,active:x.active!==false,ended_at:null};
         if(x.id!==undefined) {
           ({error}=await client.from('recurring_items').update(row).eq('owner_id',owner_id).eq('id',id));
           if(!error){
@@ -136,7 +155,10 @@ export async function handleSupabase(request: NextRequest) {
         ({error}=await client.from('transactions').insert({owner_id,date:x.date,name:item.name,amount:item.amount,category:item.type==='expense'?item.category:item.type,type:item.type,demo:false,recurring_item_id:id}));
       } else if (x.action === 'toggleRecurring') {
         if(!validId || typeof x.active!=='boolean') return bad('Invalid recurring item.');
-        ({error}=await client.from('recurring_items').update({active:x.active}).eq('owner_id',owner_id).eq('id',id));
+        ({error}=await client.from('recurring_items').update({active:x.active,ended_at:x.active?null:undefined}).eq('owner_id',owner_id).eq('id',id));
+      } else if (x.action === 'endRecurring') {
+        if(!validId) return bad('Invalid recurring item.');
+        ({error}=await client.from('recurring_items').update({active:false,ended_at:new Date().toISOString()}).eq('owner_id',owner_id).eq('id',id));
       } else if (x.action === 'deleteRecurring') {
         if(!validId) return bad('Invalid recurring item.');
         ({error}=await client.from('recurring_items').delete().eq('owner_id',owner_id).eq('id',id));
@@ -175,7 +197,7 @@ export async function handleSupabase(request: NextRequest) {
       client.from('goals').select('id,name,type,target,current').eq('owner_id',owner_id).order('id'),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').single(),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','monthly_income').maybeSingle(),
-      client.from('recurring_items').select('id,name,amount,category,type,frequency,day_of_month,start_date,active').eq('owner_id',owner_id).order('active',{ascending:false}).order('day_of_month'),
+      client.from('recurring_items').select('id,name,amount,category,type,frequency,day_of_month,start_date,active,end_type,end_date,max_occurrences,ended_at').eq('owner_id',owner_id).order('active',{ascending:false}).order('day_of_month'),
     ]);
     for (const result of [t,b,g,s,mi,r]) if (result.error) throw result.error;
     const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
