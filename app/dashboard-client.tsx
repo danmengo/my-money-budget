@@ -15,7 +15,7 @@ type Budget={category:string;amount:number};type Goal={id:number;name:string;typ
 type Recurring={id:number;name:string;amount:number;category:string;type:'expense'|'income'|'saving'|'investing';frequency:'monthly';day_of_month:number;start_date:string;active:boolean;end_type:'never'|'date'|'count';end_date:string|null;max_occurrences:number|null;ended_at:string|null};
 type Data={transactions:Tx[];budgets:Budget[];categories:string[];goals:Goal[];recurring:Recurring[];demo:boolean;monthlyIncome:number;isAdmin?:boolean};
 const fallbackCategories=['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
-const palette=['#166761','#357e98','#d1973d','#8e68a8','#4e8b70','#d16e63','#7694ad','#ac876e','#5d7c68','#b6788c','#6688b0','#b58b45'];
+const categoryPalette=['#166761','#357e98','#d1973d','#8e68a8','#4e8b70','#d16e63','#7694ad','#ac876e','#5d7c68','#b6788c','#6688b0','#b58b45'];
 const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(n/100);
 const monthName=(m:string)=>new Date(`${m}-15T12:00:00`).toLocaleDateString('en-US',{month:'long',year:'numeric'});
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
@@ -105,7 +105,7 @@ export default function DashboardClient({displayName,email,accessToken,onSignOut
  const budgetIncomeBase=income>0?income:plannedIncome;
  const budgetRemaining=budgetIncomeBase-budgetTotal;
  const allocationPercent=budgetIncomeBase?Math.round(budgetTotal/budgetIncomeBase*100):0;
- const categoryColor=(name:string)=>palette[Math.max(0,categories.indexOf(name))%palette.length];
+ const categoryColor=(name:string)=>categoryPalette[Math.max(0,categories.indexOf(name))%categoryPalette.length];
  const breakdown=categories.map(name=>({name,value:monthly.filter(t=>t.type==='expense'&&t.category===name).reduce((a,t)=>a+t.amount,0),color:categoryColor(name)})).filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
  const analyticsBreakdown=categories.map(name=>({name,value:analyticsFiltered.filter(t=>t.type==='expense'&&t.category===name).reduce((a,t)=>a+t.amount,0),color:categoryColor(name)})).filter(x=>x.value>0).sort((a,b)=>b.value-a.value);
  const sortedBudgets=(()=>{const rows=categories.map(category=>({category,amount:data?.budgets.find(b=>b.category===category)?.amount??0}));if(budgetSort==='high')return [...rows].sort((a,b)=>b.amount-a.amount);if(budgetSort==='low')return [...rows].sort((a,b)=>a.amount-b.amount);return rows})();
