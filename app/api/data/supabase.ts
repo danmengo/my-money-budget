@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { readJsonObject } from '@/lib/request-json';
+import { parseMonthReviews, validMonth } from '@/lib/month-review';
+import { readAllPages } from '@/lib/read-all-pages';
 
 const defaultCategories = ['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
 const initialBudgets = [150000,15000,60000,35000,30000,25000,10000,0,20000];
@@ -25,6 +27,19 @@ export async function handleSupabase(request: NextRequest) {
     const parsed = await readJsonObject(request, 16384);
     if (!parsed.ok) return bad(parsed.error, parsed.status);
     body = parsed.value;
+  }
+
+  // Validate review choices before any initialization or recurring writes.
+  if (body.action === 'monthReview') {
+    let currentMonth: string;
+    try {
+      const timeZone = typeof body.timeZone === 'string' ? body.timeZone : 'UTC';
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+      currentMonth = `${parts.find(part => part.type === 'year')!.value}-${parts.find(part => part.type === 'month')!.value}`;
+    } catch { return bad('Choose a valid time zone.'); }
+    if (!validMonth(body.month) || body.month >= currentMonth || !['carry', 'unallocated'].includes(String(body.choice))) {
+      return bad('Choose a completed month and a valid surplus option.');
+    }
   }
 
   async function run() {
@@ -105,7 +120,9 @@ export async function handleSupabase(request: NextRequest) {
       const validId = Number.isSafeInteger(id) && id > 0;
       const amount = Math.round(Number(x.amount) * 100);
       const name = typeof x.name === 'string' ? x.name.trim().slice(0,100) : '';
-      if (x.action === 'transaction') {
+      if (x.action === 'monthReview') {
+        ({ error } = await client.from('settings').upsert({ owner_id, key: `month_review:${x.month}`, value: String(x.choice) }, { onConflict: 'owner_id,key' }));
+      } else if (x.action === 'transaction') {
         if (!name || typeof x.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.date) || !Number.isSafeInteger(amount) || amount <= 0 || amount > 100000000 || !['expense','income','saving','investing'].includes(String(x.type)) || !(x.type === 'expense' ? categories.includes(String(x.category)) : x.category === x.type)) return bad('Check the transaction details.');
         if (x.id !== undefined && !validId) return bad('Invalid transaction.');
         const row = { owner_id, date: x.date, name, amount, category: String(x.category), type: String(x.type), demo: false };
@@ -207,18 +224,19 @@ export async function handleSupabase(request: NextRequest) {
       if (error) throw error;
     }
 
-    const [t,b,g,s,mi,r,admin] = await Promise.all([
-      client.from('transactions').select('id,date,name,amount,category,type,recurring_item_id').eq('owner_id',owner_id).order('date',{ascending:false}).order('id',{ascending:false}),
+    const [t,b,g,s,mi,r,admin,reviews] = await Promise.all([
+      readAllPages((from, to) => client.from('transactions').select('id,date,name,amount,category,type,recurring_item_id').eq('owner_id',owner_id).order('date',{ascending:false}).order('id',{ascending:false}).range(from, to)),
       client.from('budgets').select('category,amount').eq('owner_id',owner_id),
       client.from('goals').select('id,name,type,target,current').eq('owner_id',owner_id).order('id'),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').single(),
       client.from('settings').select('value').eq('owner_id',owner_id).eq('key','monthly_income').maybeSingle(),
       client.from('recurring_items').select('id,name,amount,category,type,frequency,day_of_month,start_date,active,end_type,end_date,max_occurrences,ended_at').eq('owner_id',owner_id).order('active',{ascending:false}).order('day_of_month'),
       client.from('admin_users').select('user_id').eq('user_id',owner_id).maybeSingle(),
+      readAllPages((from, to) => client.from('settings').select('key,value').eq('owner_id',owner_id).like('key','month_review:%').order('key').range(from, to)),
     ]);
-    for (const result of [t,b,g,s,mi,r,admin]) if (result.error) throw result.error;
+    for (const result of [t,b,g,s,mi,r,admin,reviews]) if (result.error) throw result.error;
     const monthlyIncome = mi.data?.value ? Number(mi.data.value) : 0;
-    return NextResponse.json({ transactions: t.data, budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0, isAdmin: !!admin.data },{headers:responseHeaders});
+    return NextResponse.json({ transactions: t.data, monthReviews: parseMonthReviews(reviews.data), budgets: (b.data || []).sort((a,b) => categories.indexOf(a.category)-categories.indexOf(b.category)), categories, goals:g.data, recurring:r.data||[], demo:s.data?.value === 'demo', monthlyIncome: Number.isSafeInteger(monthlyIncome) ? monthlyIncome : 0, isAdmin: !!admin.data },{headers:responseHeaders});
   }
   try { return await run(); }
   catch (error) {
