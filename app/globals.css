@@ -454,6 +454,18 @@
   .auth-form .code-input { font-size: 22px; letter-spacing: 5px; padding-left: 19px; }
 }
 
+.legal-links { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.terms-page, .dark .terms-page { background: var(--background); color: var(--foreground); }
+.terms-page .privacy-card { background: var(--card); color: var(--card-foreground); border-color: var(--border); }
+.terms-page .privacy-brand, .terms-page .privacy-card h2 { color: var(--foreground); }
+.terms-page .privacy-card > p:not(.eyebrow):not(.privacy-updated), .terms-page .privacy-updated { color: var(--muted-foreground); }
+.terms-page .privacy-brand > span:last-child > span, .terms-page .eyebrow,
+.terms-page .privacy-card a { color: var(--primary); }
+.terms-page .privacy-card p a { text-decoration: underline; text-underline-offset: 3px; }
+.terms-page .auth-logo-icon { background: var(--primary); color: var(--primary-foreground); }
+.terms-page .privacy-actions { border-color: var(--border); }
+.terms-page a:focus-visible, .legal-links a:focus-visible, .auth-terms a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; border-radius: 2px; }
+
 /* Admin feedback uses the same surfaces and text colors as the app. */
 .admin-feedback-page, .dark .admin-feedback-page { background: var(--background); color: var(--foreground); }
 .admin-feedback-card, .dark .admin-feedback-card {
