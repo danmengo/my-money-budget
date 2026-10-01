@@ -15,6 +15,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "test:account-deletion": "node --experimental-strip-types --test tests/account-deletion.test.mjs",
+    "test:month-review": "node --experimental-strip-types --test tests/month-review.test.mjs tests/month-review-ui.test.mjs tests/api-access.test.mjs",
     "test:security": "node --experimental-strip-types --test tests/account-deletion.test.mjs tests/request-json.test.mjs tests/api-access.test.mjs"
   },
   "dependencies": {
