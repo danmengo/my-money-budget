@@ -425,3 +425,31 @@
   .goal-row-title { gap: 10px; }
   .palette-grid { grid-template-columns: 1fr; }
 }
+
+/* Keep both sign-in steps on the same theme as the dashboard. */
+.auth-page, .dark .auth-page,
+.auth-form-side, .dark .auth-form-side { background: var(--background); color: var(--foreground); }
+.auth-card-head h2, .auth-card-head p strong,
+.auth-form label > span, .auth-mobile-brand { color: var(--foreground); }
+.auth-card-head p, .auth-divider, .auth-terms { color: var(--muted-foreground); }
+.auth-card-head p strong { overflow-wrap: anywhere; }
+.auth-card-head > span, .auth-link-button, .auth-terms a,
+.auth-mobile-brand strong > span { color: var(--primary); }
+.google-button, .dark .google-button,
+.auth-form input, .dark .auth-form input {
+  background: var(--card) !important; color: var(--foreground) !important; border-color: var(--input) !important;
+}
+.google-button:hover { border-color: var(--ring) !important; background: var(--muted) !important; }
+.auth-form input::placeholder { color: var(--muted-foreground); opacity: 1; }
+.auth-form input:focus { border-color: var(--ring) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
+.auth-divider:before, .auth-divider:after { background: var(--border); }
+.email-button { background: var(--primary); color: var(--primary-foreground); }
+.email-button:hover { background: color-mix(in srgb, var(--primary) 90%, var(--foreground)); box-shadow: none; }
+.auth-message { background: var(--muted); color: var(--foreground); border-color: var(--border); }
+.auth-link-button:focus-visible, .google-button:focus-visible, .email-button:focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 3px;
+}
+@media (max-width: 450px) {
+  .auth-form input { font-size: 16px; }
+  .auth-form .code-input { font-size: 22px; letter-spacing: 5px; padding-left: 19px; }
+}
