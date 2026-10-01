@@ -453,3 +453,32 @@
   .auth-form input { font-size: 16px; }
   .auth-form .code-input { font-size: 22px; letter-spacing: 5px; padding-left: 19px; }
 }
+
+/* Admin feedback uses the same surfaces and text colors as the app. */
+.admin-feedback-page, .dark .admin-feedback-page { background: var(--background); color: var(--foreground); }
+.admin-feedback-card, .dark .admin-feedback-card {
+  background: var(--card); color: var(--card-foreground); border-color: var(--border);
+}
+.admin-feedback-item { background: var(--muted); border-color: var(--border); min-width: 0; }
+.admin-feedback-page .privacy-brand, .admin-feedback-meta strong,
+.admin-feedback-item p, .admin-feedback-empty h2 { color: var(--foreground); }
+.admin-feedback-page .privacy-brand { margin-bottom: 0; }
+.admin-feedback-page .privacy-brand > span:last-child > span,
+.admin-feedback-page .eyebrow { color: var(--primary); }
+.admin-feedback-page .auth-logo-icon { background: var(--primary); color: var(--primary-foreground); }
+.admin-back, .admin-feedback-title p:not(.eyebrow), .admin-feedback-meta span,
+.admin-feedback-item small, .admin-feedback-empty { color: var(--muted-foreground); }
+.admin-feedback-meta > div { min-width: 0; }
+.admin-feedback-meta strong, .admin-feedback-item p, .admin-feedback-item small { overflow-wrap: anywhere; }
+.admin-feedback-title button {
+  min-height: 44px; background: var(--secondary); color: var(--secondary-foreground); border-color: var(--border);
+}
+.admin-feedback-title button:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground); border-color: var(--ring); }
+.admin-feedback-title button:disabled { opacity: .65; cursor: wait; }
+.admin-feedback-title button:focus-visible, .admin-feedback-header a:focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 3px;
+}
+.admin-feedback-card .error {
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--foreground); border-color: color-mix(in srgb, var(--destructive) 45%, var(--border));
+}
