@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { readJsonObject } from '@/lib/request-json';
 
 const defaultCategories = ['Housing','Utilities','Food','Transportation','Shopping','Entertainment','Subscriptions','Investing','Miscellaneous'];
 const initialBudgets = [150000,15000,60000,35000,30000,25000,10000,0,20000];
@@ -17,6 +18,14 @@ export async function handleSupabase(request: NextRequest) {
   const { data: { user }, error: authError } = await client.auth.getUser(token);
   if (authError || !user) return bad('Your session expired. Please sign in again.', 401);
   const owner_id = user.id;
+
+  // Validate before initialization or recurring-payment processing can write data.
+  let body: Record<string, unknown> = {};
+  if (request.method === 'POST') {
+    const parsed = await readJsonObject(request, 16384);
+    if (!parsed.ok) return bad(parsed.error, parsed.status);
+    body = parsed.value;
+  }
 
   async function run() {
     const { data: marker, error: markerError } = await client.from('settings').select('value').eq('owner_id',owner_id).eq('key','initialized').maybeSingle();
@@ -90,9 +99,7 @@ export async function handleSupabase(request: NextRequest) {
     }
 
     if (request.method === 'POST') {
-      const contentLength=Number(request.headers.get('content-length')||0);
-      if(contentLength>16384) return bad('Request is too large.',413);
-      const x = await request.json() as Record<string, unknown>;
+      const x = body;
       let error: { message: string } | null = null;
       const id = Number(x.id);
       const validId = Number.isSafeInteger(id) && id > 0;
