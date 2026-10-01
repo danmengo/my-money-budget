@@ -62,7 +62,13 @@ export default function SupabaseShell() {
 
   async function signInGoogle() {
     setMessage(''); setGoogleBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/` } });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
     if (error) { setMessage(error.message); setGoogleBusy(false); }
   }
 
