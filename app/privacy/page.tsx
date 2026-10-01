@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { TrendingUp } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -47,7 +48,7 @@ export default function PrivacyPage() {
         <h2>Changes to this policy</h2>
         <p>This policy may be updated as the application changes. The date at the top of this page will be updated when material changes are made.</p>
 
-        <div className="privacy-actions"><a href="/">← Back to My Money</a></div>
+        <nav className="privacy-actions legal-links" aria-label="Legal page navigation"><a href="/">← Back to My Money</a><Link href="/terms">Terms of Use</Link></nav>
       </article>
     </div>
   </main>;

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
@@ -106,7 +107,7 @@ export default function SupabaseShell() {
         </form>
         {sent && <button className="auth-link-button" type="button" onClick={() => { setSent(false); setCode(''); setMessage(''); }}>Use a different email</button>}
         {message && <p className="auth-message" role="status">{message}</p>}
-        {!sent && <p className="auth-terms">By continuing, you acknowledge the <a href="/privacy">Privacy Policy</a>.</p>}
+        {!sent && <p className="auth-terms">By continuing, you agree to the <Link href="/terms">Terms of Use</Link> and acknowledge the <Link href="/privacy">Privacy Policy</Link>.</p>}
       </div>
     </section>
   </main>;
