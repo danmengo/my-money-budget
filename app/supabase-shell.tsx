@@ -31,8 +31,14 @@ export default function SupabaseShell() {
     void supabase.auth.getSession().then(({ data }) => {
       if (active) { setSession(data.session); setLoading(false); }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
-      if (active) { setSession(next); setLoading(false); }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
+      if (active) {
+        setSession(next); setLoading(false);
+        if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+          setEmail(''); setCode(''); setSent(false); setMessage('');
+          setBusy(false); setGoogleBusy(false);
+        }
+      }
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, []);
@@ -46,7 +52,9 @@ export default function SupabaseShell() {
   }
 
   async function verifyCode(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setMessage('');
+    event.preventDefault();
+    if (!/^\d{8}$/.test(code)) { setMessage('Enter the full 8-digit sign-in code.'); return; }
+    setBusy(true); setMessage('');
     const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
     setBusy(false);
     if (error) setMessage(error.message);
@@ -80,14 +88,14 @@ export default function SupabaseShell() {
     <section className="auth-form-side">
       <div className="auth-mobile-brand"><span className="auth-logo-icon"><TrendingUp size={18}/></span><strong>my<span>money</span></strong></div>
       <div className="auth-card">
-        <div className="auth-card-head"><span>WELCOME</span><h2>{sent ? 'Check your email' : 'Welcome to My Money'}</h2><p>{sent ? <>Enter the 6-digit code sent to <strong>{email}</strong>.</> : 'Sign in or create an account to continue.'}</p></div>
+        <div className="auth-card-head"><span>WELCOME</span><h2>{sent ? 'Check your email' : 'Welcome to My Money'}</h2><p>{sent ? <>Enter the 8-digit code sent to <strong>{email}</strong>.</> : 'Sign in or create an account to continue.'}</p></div>
         {!sent && <>
           <button className="google-button" type="button" onClick={() => void signInGoogle()} disabled={googleBusy}><GoogleIcon/><span>{googleBusy ? 'Connecting…' : 'Continue with Google'}</span></button>
           <div className="auth-divider"><span>or continue with email</span></div>
         </>}
         <form onSubmit={sent ? verifyCode : sendCode} className="auth-form">
           {!sent && <label><span>Email address</span><input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={event => setEmail(event.target.value)} /></label>}
-          {sent && <label><span>Sign-in code</span><input className="code-input" required inputMode="numeric" autoComplete="one-time-code" placeholder="000000" maxLength={8} autoFocus value={code} onChange={event => setCode(event.target.value.replace(/\D/g,''))} /></label>}
+          {sent && <label><span>Sign-in code</span><input className="code-input" required inputMode="numeric" autoComplete="one-time-code" placeholder="00000000" minLength={8} maxLength={8} pattern="[0-9]{8}" title="Enter the 8-digit code from your email" autoFocus value={code} onChange={event => setCode(event.target.value.replace(/\D/g,''))} /></label>}
           <button className="email-button" type="submit" disabled={busy}><span>{busy ? 'Please wait…' : sent ? 'Verify & sign in' : 'Continue with email'}</span>{!busy && <ArrowRight size={17}/>}</button>
         </form>
         {sent && <button className="auth-link-button" type="button" onClick={() => { setSent(false); setCode(''); setMessage(''); }}>Use a different email</button>}
