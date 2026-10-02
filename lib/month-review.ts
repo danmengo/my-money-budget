@@ -46,7 +46,7 @@ export function monthBalances(transactions: ReviewTransaction[], reviews: MonthR
   return { cashFlow, incoming, outgoing };
 }
 
-export function buildMonthReview(month: string, transactions: ReviewTransaction[], budgets: { category: string; amount: number }[]) {
+export function buildMonthReview(month: string, transactions: ReviewTransaction[], budgets: { category: string; amount: number; base?: number; carry?: number }[]) {
   const monthly = transactions.filter(transaction => transaction.date.slice(0, 7) === month);
   const total = (type: string) => monthly.filter(transaction => transaction.type === type).reduce((sum, transaction) => sum + transaction.amount, 0);
   const spending = new Map<string, number>();
@@ -62,9 +62,9 @@ export function buildMonthReview(month: string, transactions: ReviewTransaction[
   const categories = [...spending].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category));
   const income = total('income'), spent = total('expense'), saved = total('saving'), invested = total('investing');
   // Match Budget's Investing category and its zero-means-no-limit behavior.
-  const overBudget = budgets.map(budget => ({ category: budget.category, limit: budget.amount,
+  const overBudget = budgets.filter(budget => budget.amount > 0 || (budget.base ?? 0) > 0 || (budget.carry ?? 0) !== 0).map(budget => ({ category: budget.category, limit: budget.amount,
     amount: budget.category === 'Investing' ? invested : (spending.get(budget.category) ?? 0) }))
-    .filter(item => item.limit > 0 && item.amount > item.limit).sort((a, b) => (b.amount - b.limit) - (a.amount - a.limit));
+    .filter(item => item.amount > item.limit).sort((a, b) => (b.amount - b.limit) - (a.amount - a.limit));
   return { income, spent, saved, invested, surplus: income - spent - saved - invested,
     count: monthly.length, topCategory: categories[0], overBudget,
     recurring: [...recurring.entries()].map(([id, item]) => ({ id, ...item })).sort((a, b) => b.amount - a.amount).slice(0, 5) };

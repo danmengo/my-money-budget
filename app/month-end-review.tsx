@@ -10,7 +10,7 @@ const monthName = (month: string) => new Date(`${month}-15T12:00:00`).toLocaleDa
 
 type Props = {
   month: string; currentMonth: string; transactions: ReviewTransaction[];
-  budgets: { category: string; amount: number }[]; choice?: ReviewChoice;
+  budgets: { category: string; amount: number; recorded?: boolean }[]; choice?: ReviewChoice;
   carryIn: number; carryOut: number; busy: boolean;
   onChoice: (choice: ReviewChoice) => Promise<boolean>;
   onAllocate: (type: 'saving' | 'investing') => void;
@@ -70,13 +70,13 @@ export default function MonthEndReview(props: Props) {
     </div>
 
     <section className="panel">
-      <div className="panel-title"><div><h2>Categories over budget</h2><p>Compared with your current category limits. Historical limits are not stored yet. Categories with no limit are excluded.</p></div></div>
+      <div className="panel-title"><div><h2>Categories over budget</h2><p>Compared with this month&apos;s limits including rollover. {budgets.some(b=>!b.recorded)&&'Some limits predate monthly tracking and use the original limits available when tracking began.'} Categories with no limit are excluded.</p></div></div>
       {review.overBudget.length ? <ul className="review-budget-list">{review.overBudget.map(item => <li key={item.category}>
         <div><strong>{item.category}</strong><small>{money(item.amount)} spent · {money(item.limit)} limit</small></div>
         <strong className="review-over">{money(item.amount - item.limit)} over</strong>
-      </li>)}</ul> : <p className="empty">{review.spent ? 'No categories exceed your current limits.' : 'No expenses to compare yet.'}</p>}
+      </li>)}</ul> : <p className="empty">{review.spent ? 'No categories exceed your selected limits.' : 'No expenses to compare yet.'}</p>}
     </section>
-    <p className="review-note">Starting the next month opens your budget with the current limits. It does not reset transactions or change previous months.</p>
+    <p className="review-note">Starting the next month opens your budget with the selected limits. It does not reset transactions or change previous months.</p>
 
     <Dialog open={confirmChoice !== null} onOpenChange={open => { if (!open && !busy) setConfirmChoice(null); }}>
       <DialogContent><DialogHeader><DialogTitle>{confirmChoice === 'carry' ? 'Carry surplus forward?' : 'Leave the balance unallocated?'}</DialogTitle></DialogHeader>
