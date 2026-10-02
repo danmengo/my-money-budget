@@ -70,3 +70,15 @@ Historical analytics adds a 12-month chart/table, older/newer navigation, and mo
 Next implement date range presets and custom dates as one feature. Inspect existing Analytics filters, integer-cent totals, category-plan history, and cash-carry semantics. Keep earned income separate from carried funds. Define and test zero-income and deficit behavior before showing rates. Reuse the current design and filters.
 
 After Phase 3, provide another handoff. Later phases: admin feedback status/user counts/app health; then pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Do not broaden scope without user direction.
+
+## Budget Builder feature (separate from Phase 3)
+
+The user requested rule-based budget help and templates. Budget → Help me plan my budget now includes Balanced, Savings focused, Essentials first, and Build my own. Read `docs/budget-builder.md` before changing it.
+
+- Guided commitments → editable amounts → old/new preview and acknowledgement.
+- High fixed costs reduce flexible extras; true deficits remain visible.
+- Limits, planned income, and a savings reserve save together in one owner-private settings upsert, effective from the selected month. Earlier/future plans and rollover modes stay intact.
+- `plan:income:YYYY-MM` and `plan:saving:YYYY-MM` are new settings. JSON export includes them. Income editing is now effective-dated; budget reset clears the reserve too.
+- Savings reserve is a plan only. Actual goal contributions use existing transaction linking; no automatic goal progress or extra cash is created.
+- `pnpm test:budget-builder` covers calculations, component events, and the real API with synthetic Supabase. Browser downloads remain unavailable; signed-in visual/interaction verification is outstanding.
+- This feature does not complete or replace the remaining Phase 3 analytics work above.
