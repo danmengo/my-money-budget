@@ -7,11 +7,11 @@ The Month-end review navigation item opens the previous completed month. The Ove
 - Income, expenses, savings, and investments use recorded transactions in the selected calendar month, in integer cents. Planned income and unposted recurring schedules are excluded.
 - Monthly surplus is income less expense, saving, and investing transactions.
 - Recurring highlights group posted expense transactions by recurring item ID. They do not substitute today's recurring rule for historical amounts.
-- Over-budget categories compare against current limits, including the existing Investing category behavior. Zero means no limit. The UI explicitly says historical limits are not stored.
+- Over-budget categories use effective monthly limits including category rollover and the existing Investing category behavior. Zero means no limit unless carried overspending creates a deficit. Months predating plan history use the legacy base and are labeled accordingly.
 - Savings/investing actions reuse the existing transaction form and write to the reviewed month. They do not move bank funds or update manually tracked goals.
 - Carry-forward uses the full positive balance after activity and incoming carry. It is not income and creates no transaction. It appears separately in Overview, Analytics, Budget, and the review.
 - Carry recomputes if earlier transactions or choices change. Deficits never carry automatically; choosing Leave unallocated stops the carry chain. Undoing carry can change later balances, as explained before confirmation.
-- Starting the next budget opens the next month with current category limits. It does not reset any data or create historical budget snapshots.
+- Starting the next budget opens the next month with its effective category limits and rollover. It does not reset data. Monthly configuration changes are stored as effective-dated preferences.
 
 ## Storage and access
 

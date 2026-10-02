@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import ts from 'typescript';
+import { loadTS } from './load-ts.mjs';
+const budgetPlanning = loadTS('lib/budget-planning.ts');
+const goalTracking = loadTS('lib/goal-tracking.ts');
 import * as monthReview from '../lib/month-review.ts';
 import { readAllPages } from '../lib/read-all-pages.ts';
 import { readJsonObject } from '../lib/request-json.ts';
@@ -18,6 +21,8 @@ async function loadHandler(path, createClient) {
     '@/lib/request-json': { readJsonObject },
     '@/lib/month-review': monthReview,
     '@/lib/read-all-pages': { readAllPages },
+    '@/lib/budget-planning': budgetPlanning,
+    '@/lib/goal-tracking': goalTracking,
   };
   const exports = {};
   new Function('require', 'exports', outputText)((name) => {

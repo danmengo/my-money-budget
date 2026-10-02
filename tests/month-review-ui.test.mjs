@@ -38,7 +38,7 @@ test('completed review renders every action and honest empty states', () => {
   const html = renderToStaticMarkup(React.createElement(MonthEndReview, props));
   for (const text of ['Total income', 'Total spent', 'Total saved', 'Total invested', 'No transactions recorded',
     'Move surplus to savings', 'Move surplus to investing', 'Carry surplus forward', 'Leave unallocated',
-    'October 2026', 'Historical limits are not stored yet']) assert.ok(html.includes(text), text);
+    'October 2026', 'Categories with no limit are excluded']) assert.ok(html.includes(text), text);
   assert.match(html, /disabled[^>]*>Move surplus to savings/);
 });
 
