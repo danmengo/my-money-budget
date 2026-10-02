@@ -32,11 +32,23 @@ const monthEndDate=(m:string)=>{const [y,mo]=m.split('-').map(Number);const d=ne
 const recurringDate=(month:string,day:number)=>{const [y,m]=month.split('-').map(Number);const last=new Date(y,m,0).getDate();return `${month}-${String(Math.min(day,last)).padStart(2,'0')}`};
 const csvEscape=(s:string)=>`"${s.replaceAll('"','""')}"`;
 const labelize=(s:string)=>s?s[0].toUpperCase()+s.slice(1):s;
+const tabs=['Overview','Transactions','Recurring','Budget','Goals','Analytics','Month-end review','Settings'];
+const tabSlug=(t:string)=>t.toLowerCase().replaceAll(' ','-');
 export default function DashboardClient({displayName,email,accessToken,onSignOut}:{displayName:string;email?:string;accessToken?:string;onSignOut?:()=>void}){
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const [warning,setWarning]=useState('');
  const savingRequest=useRef(false);
  const [tab,setTab]=useState('Overview'),[month,setMonth]=useState(currentMonth());
+ const tabRestored=useRef(false);
+ useEffect(()=>{
+   if(!tabRestored.current){
+     tabRestored.current=true;
+     const saved=tabs.find(t=>tabSlug(t)===decodeURIComponent(window.location.hash.slice(1)));
+     if(saved&&saved!==tab){if(saved==='Month-end review')setMonth(shiftMonth(currentMonth(),-1));setTab(saved);return}
+   }
+   const hash=tab==='Overview'?'':`#${tabSlug(tab)}`;
+   if(window.location.hash!==hash)history.replaceState(null,'',`${window.location.pathname}${window.location.search}${hash}`);
+ },[tab]);
  const [txOpen,setTxOpen]=useState(false),[editTx,setEditTx]=useState<Tx|null>(null),[txForm,setTxForm]=useState({name:'',amount:'',date:today(),category:'Food',type:'expense',goal_id:'none'});
  const [goalOpen,setGoalOpen]=useState(false),[editGoal,setEditGoal]=useState<Goal|null>(null),[goalForm,setGoalForm]=useState({name:'',type:'saving',target:'',current:'',tracking:'linked'});
  const [budgetEdit,setBudgetEdit]=useState<string|null>(null),[budgetAmount,setBudgetAmount]=useState('');
