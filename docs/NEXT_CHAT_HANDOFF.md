@@ -1,4 +1,4 @@
-# My Money — next-chat handoff after Phase 2
+# My Money — next-chat handoff during Phase 3
 
 ## User preferences
 
@@ -57,14 +57,16 @@ Live signed-in verification of the new Phase 2 flows still needs user confirmati
 
 Support/contact from Phase 1 was deferred when the user asked to move directly to Phase 2. No support mailbox was invented. Keep it visible in the backlog.
 
-## Next phase: Phase 3 — analytics
+## Current phase: Phase 3 — analytics
 
 Implement one feature at a time in this order:
-1. Historical analytics.
+1. Historical analytics — implemented. Read `docs/historical-analytics.md` for behavior and verification limitations.
 2. Date ranges: this month, last month, last 3/6 months, year to date, custom.
 3. Monthly comparisons.
 4. Savings/investing rates.
 
-Start by inspecting existing Analytics filters, integer-cent totals, category-plan history, and cash-carry semantics. Keep earned income separate from carried funds. Define and test zero-income and deficit behavior before showing rates. Reuse the current design and filters.
+Historical analytics adds a 12-month chart/table, older/newer navigation, and month drill-down using the shared filters. See `lib/historical-analytics.ts` and `app/historical-analytics.tsx`. `pnpm test:analytics` adds 8 passing tests; existing 35 Phase 2 and 51 security tests, type checking, and Cloudflare build passed. Browser visual/interaction verification is outstanding because the browser download failed. This is a partial-phase checkpoint, not completion of Phase 3.
+
+Next implement date range presets and custom dates as one feature. Inspect existing Analytics filters, integer-cent totals, category-plan history, and cash-carry semantics. Keep earned income separate from carried funds. Define and test zero-income and deficit behavior before showing rates. Reuse the current design and filters.
 
 After Phase 3, provide another handoff. Later phases: admin feedback status/user counts/app health; then pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Do not broaden scope without user direction.

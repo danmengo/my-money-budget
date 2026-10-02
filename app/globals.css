@@ -543,3 +543,13 @@
 }
 
 .goal-link-label { display: block; margin-top: 5px; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+
+/* Historical analytics reuses theme tokens in light, dark, and custom themes. */
+.history-panel{margin-top:20px;min-width:0}
+.history-controls{display:flex;flex-wrap:wrap;gap:8px}
+.history-chart{height:300px;width:100%;min-width:0;margin:20px 0}
+.history-table td:not(:first-child),.history-table th:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.history-table td small{display:block;color:var(--muted-foreground);font-size:11px;margin-top:3px}
+.history-month{color:var(--foreground);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:3px}
+.history-month:focus-visible{outline:2px solid var(--ring);outline-offset:4px}
+@media(max-width:600px){.history-panel>.panel-title{align-items:flex-start;flex-direction:column;gap:12px}.history-chart{height:260px}}
