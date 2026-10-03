@@ -1,4 +1,4 @@
-# My Money — next-chat handoff during Phase 3
+# My Money — next-chat handoff after Phase 3
 
 ## User preferences
 
@@ -57,19 +57,16 @@ Live signed-in verification of the new Phase 2 flows still needs user confirmati
 
 Support/contact from Phase 1 was deferred when the user asked to move directly to Phase 2. No support mailbox was invented. Keep it visible in the backlog.
 
-## Current phase: Phase 3 — analytics
+## Completed Phase 3 — analytics
 
-Implement one feature at a time in this order:
-1. Historical analytics — implemented. Read `docs/historical-analytics.md` for behavior and verification limitations.
-2. Date ranges: this month, last month, last 3/6 months, year to date, custom.
-3. Monthly comparisons.
-4. Savings/investing rates.
+1. Historical analytics: 12-month chart/table, filters, older/newer navigation, and month drill-down (PR #14).
+2. Date range presets (this month, last month, last 3/6 months, year to date) and validated inclusive custom dates.
+3. Monthly comparisons with exact period boundaries, current-month elapsed-day handling, and safe zero/negative-baseline behavior.
+4. Saving, investing, and combined allocation rates with explicit zero-income, over-100%, and deficit explanations.
 
-Historical analytics adds a 12-month chart/table, older/newer navigation, and month drill-down using the shared filters. See `lib/historical-analytics.ts` and `app/historical-analytics.tsx`. `pnpm test:analytics` adds 8 passing tests; existing 35 Phase 2 and 51 security tests, type checking, and Cloudflare build passed. Browser visual/interaction verification is outstanding because the browser download failed. This is a partial-phase checkpoint, not completion of Phase 3.
+Read `docs/phase3-implementation.md` and `docs/historical-analytics.md` before changing Analytics. Range activity, unfiltered range allocation rates, selected-month comparison, and selected-month cash balance have explicitly different scopes. Preserve those scopes or intentionally redesign and test them together. Do not count carry as income, average monthly percentage rates, or let expense filters erase a rate's income denominator.
 
-Next implement date range presets and custom dates as one feature. Inspect existing Analytics filters, integer-cent totals, category-plan history, and cash-carry semantics. Keep earned income separate from carried funds. Define and test zero-income and deficit behavior before showing rates. Reuse the current design and filters.
-
-After Phase 3, provide another handoff. Later phases: admin feedback status/user counts/app health; then pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Do not broaden scope without user direction.
+`pnpm test:analytics`, `pnpm test:phase2`, `pnpm test:security`, type checking, and the Cloudflare production build passed for this implementation. Browser visual/click checks remain outstanding because browser downloads returned invalid archives. Signed-in production review and dedicated live cross-user RLS testing also remain outstanding. Feature implementation is complete; this is not a claim that every live verification is complete.
 
 ## Budget Builder feature (separate from Phase 3)
 
@@ -81,4 +78,12 @@ The user requested rule-based budget help and templates. Budget → Help me plan
 - `plan:income:YYYY-MM` and `plan:saving:YYYY-MM` are new settings. JSON export includes them. Income editing is now effective-dated; budget reset clears the reserve too.
 - Savings reserve is a plan only. Actual goal contributions use existing transaction linking; no automatic goal progress or extra cash is created.
 - `pnpm test:budget-builder` covers calculations, component events, and the real API with synthetic Supabase. Browser downloads remain unavailable; signed-in visual/interaction verification is outstanding.
-- This feature does not complete or replace the remaining Phase 3 analytics work above.
+- This feature is separate from the completed Phase 3 analytics work above; both are preserved.
+
+## Next phase
+
+Start Phase 4 with admin feedback statuses, then user counts, then app health, one feature at a time. Inspect the current admin authorization and feedback schema first. Use server-verified admin access for all aggregate or cross-user data. Never expose email addresses or financial records merely to show user counts or app health. Keep support/contact deferred unless the user reopens it.
+
+Later: pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Budget Builder is implemented as described above; fetch current main and preserve parallel work. Do not broaden scope without direction.
+
+At the end of the next phase, update this handoff and provide a copy-and-paste prompt for a fresh chat.

@@ -1,5 +1,7 @@
 # Phase 3, feature 1 — historical analytics
 
+Phase 3 is now implemented. See `docs/phase3-implementation.md` for date ranges, comparisons, rates, and the updated history behavior below. The original selected-month mode retains its twelve-month context; other ranges use their explicit boundaries.
+
 Analytics now includes Monthly history: twelve calendar months ending at the selected month (capped at the current local month), a grouped income/stacked outflow chart, and an accessible table with exact amounts. Older/Newer months page twelve months at a time. Selecting a row opens that month's existing Analytics detail by changing the shared month selector; current filters are preserved. The year window follows the selected month.
 
 ## Calculation contract
@@ -22,10 +24,6 @@ Analytics now includes Monthly history: twelve calendar months ending at the sel
 - Browser visual/interaction verification could not run: no browser executable was installed and the browser download returned invalid archives. Real React server-render tests do not validate chart layout or browser clicks.
 - Signed-in production review and two-account live RLS verification remain outstanding. Suggested manual check: Analytics > Monthly history; check light/dark and narrow layouts, filter by expense/category/recurring, open an older month, and compare its exact values with Transactions. Do not create test financial records in a real account without authorization.
 
-## Remaining Phase 3 order
+## Phase 3 completion
 
-2. Date range presets and custom dates.
-3. Monthly comparisons.
-4. Savings/investing rates, with documented zero-income and deficit semantics.
-
-Phase 3 is not complete. Phase 1 support/contact remains deferred.
+Date ranges, monthly comparisons, and saving/investing rates are implemented. `docs/phase3-implementation.md` is authoritative for their semantics. Browser visual/click checks, signed-in production review, and live two-account RLS verification remain outstanding. Phase 1 support/contact stays deferred.
