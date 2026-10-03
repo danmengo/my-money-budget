@@ -18,7 +18,7 @@
     "test:month-review": "node --experimental-strip-types --test tests/month-review.test.mjs tests/month-review-ui.test.mjs tests/api-access.test.mjs",
     "test:phase2": "node --experimental-strip-types --test tests/budget-planning.test.mjs tests/dashboard-insights.test.mjs tests/goal-tracking.test.mjs tests/phase2-api.test.mjs tests/phase2-ui.test.mjs tests/month-review.test.mjs tests/month-review-ui.test.mjs",
     "test:security": "node --experimental-strip-types --test tests/account-deletion.test.mjs tests/request-json.test.mjs tests/api-access.test.mjs",
-    "test:analytics": "node --experimental-strip-types --test tests/historical-analytics.test.mjs tests/historical-analytics-ui.test.mjs"
+    "test:analytics": "node --experimental-strip-types --test tests/historical-analytics.test.mjs tests/historical-analytics-ui.test.mjs tests/analytics-periods.test.mjs tests/analytics-periods-ui.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
