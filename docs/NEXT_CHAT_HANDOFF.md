@@ -68,10 +68,22 @@ Read `docs/phase3-implementation.md` and `docs/historical-analytics.md` before c
 
 `pnpm test:analytics`, `pnpm test:phase2`, `pnpm test:security`, type checking, and the Cloudflare production build passed for this implementation. Browser visual/click checks remain outstanding because browser downloads returned invalid archives. Signed-in production review and dedicated live cross-user RLS testing also remain outstanding. Feature implementation is complete; this is not a claim that every live verification is complete.
 
+## Budget Builder feature (separate from Phase 3)
+
+The user requested rule-based budget help and templates. Budget → Help me plan my budget now includes Balanced, Savings focused, Essentials first, and Build my own. Read `docs/budget-builder.md` before changing it.
+
+- Guided commitments → editable amounts → old/new preview and acknowledgement.
+- High fixed costs reduce flexible extras; true deficits remain visible.
+- Limits, planned income, and a savings reserve save together in one owner-private settings upsert, effective from the selected month. Earlier/future plans and rollover modes stay intact.
+- `plan:income:YYYY-MM` and `plan:saving:YYYY-MM` are new settings. JSON export includes them. Income editing is now effective-dated; budget reset clears the reserve too.
+- Savings reserve is a plan only. Actual goal contributions use existing transaction linking; no automatic goal progress or extra cash is created.
+- `pnpm test:budget-builder` covers calculations, component events, and the real API with synthetic Supabase. Browser downloads remain unavailable; signed-in visual/interaction verification is outstanding.
+- This feature is separate from the completed Phase 3 analytics work above; both are preserved.
+
 ## Next phase
 
 Start Phase 4 with admin feedback statuses, then user counts, then app health, one feature at a time. Inspect the current admin authorization and feedback schema first. Use server-verified admin access for all aggregate or cross-user data. Never expose email addresses or financial records merely to show user counts or app health. Keep support/contact deferred unless the user reopens it.
 
-Later: pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Other conversations may be working on budget templates; fetch current main and preserve any parallel work. Do not broaden scope without direction.
+Later: pricing/entitlements/Stripe; then CSV import, notifications, bank connections, and shared budgets. Budget Builder is implemented as described above; fetch current main and preserve parallel work. Do not broaden scope without direction.
 
 At the end of the next phase, update this handoff and provide a copy-and-paste prompt for a fresh chat.

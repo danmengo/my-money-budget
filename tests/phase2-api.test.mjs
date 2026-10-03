@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { loadTS } from './load-ts.mjs';
 const owner='owner-a';
-function setup(failMetadata=false) {
+function setup(failMetadata=false, failBuilder=false) {
  const tables={settings:[{owner_id:owner,key:'initialized',value:'personal'},{owner_id:owner,key:'plan:goal-mode:1',value:'linked'}],budgets:[{owner_id:owner,category:'Food',amount:10000}],transactions:[],recurring_items:[],goals:[{owner_id:owner,id:1,name:'Reserve',type:'saving',target:100000,current:500},{owner_id:'owner-b',id:2,name:'Other person',type:'saving',target:100000,current:0}],admin_users:[]};
  let nextId=100;
  const client={auth:{getUser:async()=>({data:{user:{id:owner,email:'test@example.test'}},error:null})},from(table){
@@ -22,6 +22,7 @@ function setup(failMetadata=false) {
     if(operation==='read'||operation==='update'||operation==='delete') assert.ok(found.every(r=>(table==='admin_users'?r.user_id:r.owner_id)===owner),'query leaked another owner');
     if(operation==='insert'||operation==='upsert'){
      const rows=Array.isArray(payload)?payload:[payload];
+     if(failBuilder&&rows.some(r=>r.key?.startsWith('plan:income:'))) return {data:null,error:{message:'Simulated plan failure'}};
      if(failMetadata&&rows.some(r=>r.key?.startsWith('plan:tx-goal:'))) return {data:null,error:{message:'Simulated metadata failure'}};
      found=rows.map(row=>{
       assert.equal(row.owner_id,owner);
@@ -41,7 +42,7 @@ function setup(failMetadata=false) {
  const dependencies={
   '@supabase/supabase-js':{createClient:(_url,key,options)=>{assert.equal(key,'test-key');assert.equal(options.global.headers.Authorization,'Bearer test');return client;}},
   'next/server':{NextResponse:Response},
-  ...Object.fromEntries(['request-json','month-review','read-all-pages','budget-planning','goal-tracking'].map(name=>[`@/lib/${name}`,loadTS(`lib/${name}.ts`)])),
+  ...Object.fromEntries(['request-json','month-review','read-all-pages','budget-planning','goal-tracking','budget-builder'].map(name=>[`@/lib/${name}`,loadTS(`lib/${name}.ts`)])),
  };
  const source=readFileSync(new URL('../app/api/data/supabase.ts',import.meta.url),'utf8');
  const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}});
@@ -96,4 +97,39 @@ test('recurring goal changes apply after posted history and preserve links when 
  tables.settings.push({owner_id:owner,key:`plan:recurring-goal:8:${month}`,value:'1'});
  result=await call({action:'deleteRecurring',id:8});assert.equal(result.status,200);
  assert.ok(tables.settings.some(r=>r.key==='plan:tx-goal:9'&&r.value==='1'));
+});
+
+test('builder saves all planning fields with verified owner, preserving historical and future limits and rollover',async()=>{
+ const {call,tables}=setup();
+ tables.settings.push({owner_id:owner,key:'plan:budget:Food:2026-09',value:JSON.stringify({amount:9000,rollover:'unused'})},{owner_id:owner,key:'plan:budget:Food:2026-12',value:JSON.stringify({amount:30000,rollover:'none'})},{owner_id:'owner-b',key:'plan:income:2026-10',value:'1'});
+ const payload={action:'budgetBuilder',month:'2026-10',income:300000,saving:60000,rows:[{category:'Food',amount:10000}],owner_id:'owner-b'};
+ let result=await call(payload);assert.equal(result.status,200);
+ assert.equal(result.body.budgetPlans.find(p=>p.month==='2026-10').rollover,'unused');
+ assert.equal(result.body.budgetPlans.find(p=>p.month==='2026-12').amount,30000);
+ assert.equal(result.body.budgetPlans.find(p=>p.month==='2026-09').amount,9000);
+ assert.equal(result.body.planningSettings.find(p=>p.key==='plan:income:2026-10').value,'300000');
+ assert.equal(result.body.planningSettings.find(p=>p.key==='plan:saving:2026-10').value,'60000');
+ assert.equal(tables.settings.find(p=>p.owner_id==='owner-b').value,'1');
+ assert.equal(tables.budgets[0].amount,10000);assert.equal(tables.transactions.length,0);assert.equal(result.body.goals[0].current,500);
+ const count=tables.settings.length;result=await call(payload);assert.equal(result.status,200);assert.equal(tables.settings.length,count);
+ result=await call({action:'resetBudget',month:'2026-11'});assert.equal(result.status,200);assert.equal(result.body.planningSettings.find(p=>p.key==='plan:saving:2026-11').value,'0');
+});
+test('builder rejects unknown categories and failed batch saves leave limits, income and reserve unchanged',async()=>{
+ const payload={action:'budgetBuilder',month:'2026-10',income:300000,saving:60000,rows:[{category:'Food',amount:10000}]};
+ const {call,tables}=setup(false,true);const previous=JSON.stringify(tables.settings);
+ assert.equal((await call({...payload,rows:[{category:'Unknown',amount:100}]})).status,400);
+ assert.equal((await call(payload)).status,503);assert.equal(JSON.stringify(tables.settings),previous);
+});
+test('builder save does not post due recurring transactions as a side effect',async()=>{
+ const {call,tables}=setup();
+ const month=new Date().toISOString().slice(0,7);
+ tables.recurring_items.push({owner_id:owner,id:8,name:'Bill',type:'expense',amount:1000,category:'Food',frequency:'monthly',day_of_month:1,start_date:month+'-01',active:true,end_type:'never',end_date:null,max_occurrences:null,ended_at:null});
+ assert.equal((await call({action:'budgetBuilder',month,income:10000,saving:0,rows:[{category:'Food',amount:10000}]})).status,200);
+ assert.equal(tables.transactions.length,0);
+});
+test('editing planned income is monthly and does not rewrite earlier or future plans',async()=>{
+ const {call,tables}=setup();tables.settings.push({owner_id:owner,key:'monthly_income',value:'15000'},{owner_id:owner,key:'plan:income:2026-12',value:'40000'});
+ const result=await call({action:'monthlyIncome',month:'2026-10',amount:'300'});assert.equal(result.status,200);
+ assert.equal(result.body.monthlyIncome,15000);assert.equal(result.body.planningSettings.find(p=>p.key==='plan:income:2026-12').value,'40000');
+ assert.equal(result.body.planningSettings.find(p=>p.key==='plan:income:2026-10').value,'30000');
 });

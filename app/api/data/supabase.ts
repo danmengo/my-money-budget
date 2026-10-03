@@ -4,6 +4,7 @@ import { readJsonObject } from '@/lib/request-json';
 import { parseMonthReviews, validMonth } from '@/lib/month-review';
 import { readAllPages } from '@/lib/read-all-pages';
 import { budgetPlanKey, parseBudgetPlans, rolloverModes } from '@/lib/budget-planning';
+import { validBuilderPayload } from '@/lib/budget-builder';
 import { enrichGoalData } from '@/lib/goal-tracking';
 import { shiftMonth } from '@/lib/month-review';
 
@@ -51,6 +52,9 @@ export async function handleSupabase(request: NextRequest) {
     if (body.action === 'budget' && !rolloverModes.includes(body.rollover as typeof rolloverModes[number])) return bad('Choose a valid rollover option.');
   }
 
+  if (body.action === 'budgetBuilder' && !validBuilderPayload(body)) return bad('Check the budget plan amounts and month.');
+  if (body.action === 'monthlyIncome' && body.month !== undefined && !validMonth(body.month)) return bad('Choose a valid budget month.');
+
   if (body.action === 'goal' && body.tracking !== undefined && !['manual','linked'].includes(String(body.tracking))) return bad('Choose a valid goal tracking mode.');
   const warnings: string[] = [];
   // A financial record can save even if its optional metadata write fails.
@@ -80,6 +84,10 @@ export async function handleSupabase(request: NextRequest) {
     if (existingBudgetError) throw existingBudgetError;
     for (const row of existingBudgets || []) if (!categories.includes(row.category)) categories.push(row.category);
 
+    if (body.action === 'budgetBuilder') {
+      if (!validBuilderPayload(body) || body.rows.length !== (existingBudgets || []).length || body.rows.some(row => !categories.includes(row.category) || !(existingBudgets || []).some(b => b.category === row.category))) return bad('Your categories changed. Close the builder and reopen it to refresh your plan.');
+    }
+
     let selectedGoalId: number | null | undefined;
     if (['transaction','recurring'].includes(String(body.action)) && body.goal_id !== undefined) {
       selectedGoalId = body.goal_id === null || body.goal_id === 'none' || body.goal_id === '' ? null : Number(body.goal_id);
@@ -101,7 +109,7 @@ export async function handleSupabase(request: NextRequest) {
     const todayDate = `${currentYm}-${String(now.getDate()).padStart(2,'0')}`;
     const { data: recurringForAuto, error: recurringAutoError } = await readAllPages((from,to)=>client.from('recurring_items').select('id,name,amount,category,type,day_of_month,start_date,active,end_type,end_date,max_occurrences,ended_at').eq('owner_id',owner_id).eq('active',true).order('id').range(from,to));
     if (recurringAutoError) throw recurringAutoError;
-    for (const item of recurringForAuto || []) {
+    for (const item of body.action === 'budgetBuilder' ? [] : recurringForAuto || []) {
       if (!item.start_date || item.start_date.slice(0,7) > currentYm) continue;
       const dueDay = Math.min(item.day_of_month, monthLast);
       const dueDate = `${currentYm}-${String(dueDay).padStart(2,'0')}`;
@@ -250,14 +258,25 @@ export async function handleSupabase(request: NextRequest) {
         const message=typeof x.message==='string'?x.message.trim().slice(0,2000):'';
         if(!message) return bad('Write a message before sending feedback.');
         ({error}=await client.from('feedback').insert({owner_id,email:ownerEmail,message}));
+      } else if (x.action === 'budgetBuilder' && validBuilderPayload(x)) {
+        const stored = await readAllPages((from,to)=>client.from('settings').select('key,value').eq('owner_id',owner_id).gte('key','plan:').lt('key','plan;').order('key').range(from,to));
+        if (stored.error) throw stored.error;
+        const plans = parseBudgetPlans(stored.data);
+        const rows = x.rows.map(row => {
+          const previous = plans.filter(p=>p.category===row.category && p.month<=x.month).sort((a,b)=>b.month.localeCompare(a.month))[0];
+          return {owner_id,key:budgetPlanKey(row.category,x.month),value:JSON.stringify({amount:row.amount,rollover:previous?.rollover??'none',...(previous?.month===x.month && previous.reset ? {reset:true}: {})})};
+        });
+        rows.push({owner_id,key:`plan:income:${x.month}`,value:String(x.income)}, {owner_id,key:`plan:saving:${x.month}`,value:String(x.saving)});
+        // One Postgres upsert statement: limits, income and reserve save together.
+        ({error}=await client.from('settings').upsert(rows,{onConflict:'owner_id,key'}));
       } else if (x.action === 'resetBudget') {
-        ({error}=await client.from('settings').upsert(categories.map(category=>({owner_id,key:budgetPlanKey(category,String(x.month)),value:JSON.stringify({amount:0,rollover:'none',reset:true})})),{onConflict:'owner_id,key'}));
+        ({error}=await client.from('settings').upsert([...categories.map(category=>({owner_id,key:budgetPlanKey(category,String(x.month)),value:JSON.stringify({amount:0,rollover:'none',reset:true})})),{owner_id,key:`plan:saving:${x.month}`,value:'0'}],{onConflict:'owner_id,key'}));
       } else if (x.action === 'budget') {
         if (!categories.includes(String(x.category)) || !Number.isSafeInteger(amount) || amount < 0 || amount > 100000000) return bad('Enter a valid budget amount.');
         ({ error } = await client.from('settings').upsert({ owner_id, key: budgetPlanKey(String(x.category),String(x.month)), value: JSON.stringify({amount,rollover:x.rollover}) }, { onConflict: 'owner_id,key' }));
       } else if (x.action === 'monthlyIncome') {
         if (!Number.isSafeInteger(amount) || amount < 0 || amount > 1000000000) return bad('Enter a valid monthly income.');
-        ({ error } = await client.from('settings').upsert({ owner_id, key: 'monthly_income', value: String(amount) }, { onConflict: 'owner_id,key' }));
+        ({ error } = await client.from('settings').upsert({ owner_id, key: x.month ? `plan:income:${x.month}` : 'monthly_income', value: String(amount) }, { onConflict: 'owner_id,key' }));
       } else if (x.action === 'goal') {
         const target = Math.round(Number(x.target)*100), current = Math.round(Number(x.current)*100);
         if (!name || !['saving','investing'].includes(String(x.type)) || !Number.isSafeInteger(target) || target <= 0 || target > 1000000000 || !Number.isSafeInteger(current) || current < 0 || current > 1000000000) return bad('Enter valid goal details.');

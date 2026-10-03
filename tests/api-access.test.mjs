@@ -22,6 +22,7 @@ async function loadHandler(path, createClient) {
     '@/lib/month-review': monthReview,
     '@/lib/read-all-pages': { readAllPages },
     '@/lib/budget-planning': budgetPlanning,
+    '@/lib/budget-builder': loadTS('lib/budget-builder.ts'),
     '@/lib/goal-tracking': goalTracking,
   };
   const exports = {};
@@ -156,5 +157,13 @@ for (const choice of ['carry', 'unallocated']) {
     assert.match(response.headers.get('cache-control'), /no-store/);
     assert.deepEqual((await response.json()).monthReviews, { '2025-09': choice });
     assert.equal(writes.length, 1);
+  });
+}
+
+for (const patch of [{income:'3000'},{saving:-1},{saving:0.1},{month:'2026-13'},{rows:[]},{rows:[{category:'Food',amount:1},{category:'Food',amount:2}]}]) {
+  test(`invalid builder payload is rejected before any database operation: ${JSON.stringify(patch)}`,async()=>{
+    const handler=await loadHandler('../app/api/data/supabase.ts',()=>({auth:{getUser:async()=>({data:{user:{id:verifiedId}},error:null})},from(){throw Error('Must validate before database access');}}));
+    const response=await handler.handleSupabase(new Request('https://example.test/api/data',{method:'POST',headers:{Authorization:'Bearer test-token'},body:JSON.stringify({action:'budgetBuilder',month:'2026-10',income:300000,saving:60000,rows:[{category:'Food',amount:10000}],...patch})}));
+    assert.equal(response.status,400);assert.match(response.headers.get('cache-control'),/no-store/);
   });
 }
